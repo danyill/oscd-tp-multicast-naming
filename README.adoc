@@ -1,0 +1,368 @@
+= OpenSCD Plugin: {plugin-name} Editor
+:plugin-name: TP Multicast Naming
+:sectnums:
+:sectlinks:
+:toc:
+:imagesdir: docs/media
+:icons: font
+:experimental:
+:uri-action-translate-ci-bundle: https://jakobvogelsang.github.io/oscd-action-translate/oscd-action-translate.js
+:uri-openscd-core: https://github.com/openscd/open-scd-core#readme
+:uri-openscd: https://github.com/openscd
+:uri-openscd-app: https://openscd.github.io
+:uri-openscd-core-app: https://openscd.github.io/open-scd/
+:uri-openscd-core-plugin: pass:v[https://openscd.github.io/open-scd/?plugins=%7B%22menu%22:%5B%7B%22name%22:%22Open%20File%22,%22translations%22:%7B%22de%22:%22Datei%20%C3%B6ffnen%22%7D,%22icon%22:%22folder_open%22,%22active%22:true,%22src%22:%22https://openscd.github.io/oscd-open/oscd-open.js%22%7D,%7B%22name%22:%22Save%20File%22,%22translations%22:%7B%22de%22:%22Datei%20speichern%22%7D,%22icon%22:%22save%22,%22active%22:true,%22src%22:%22https://openscd.github.io/oscd-save/oscd-save.js%22%7D,%7B%22name%22:%22Communications%20Export%22,%22translations%22:%7B%22de%22:%22Kommunikationsexport%22,%22pt%22:%22Exporta%C3%A7%C3%A3o%20de%20Comunica%C3%A7%C3%B5es%22%7D,%22icon%22:%22sim_card_download%22,%22active%22:true,%22requireDoc%22:true,%22src%22:%22/dist/oscd-tp-multicast-naming.js%22%7D%5D,%22editor%22:%5B%5D%7D]
+// TIP:
+// the above URI is done by taking the plugins object from demo.html (without strings) and updating to the correct {uri-ci-bundle} value and then in the browser calling:
+// console.log(`https://openscd.github.io/open-scd/?plugins=${encodeURI(JSON.stringify(plugins))}`)
+// then substitute the value within the pass:v[<url>]
+:uri-openwc: https://github.com/open-wc/open-wc
+:uri-plugin: https://github.com/danyill/oscd-tp-multicast-naming
+:uri-ci-bundle: https://danyill.github.io/oscd-tp-multicast-naming/oscd-tp-multicast-naming.js
+:uri-material-icons: https://fonts.google.com/icons
+:uri-openscd-core-plugin-demo: https://danyill.github.io/oscd-tp-multicast-naming/index.deploy.html
+:source-highlighter: highlight.js
+
+== What is this?
+
+This plugin is intended to allow multicast addressing to meet Transpower requirements.
+
+* This is a plugin for {uri-openscd-core}[open-scd-core], the core
+editor engine for {uri-openscd}[OpenSCD].
+
+* This plugin is a web component and follows the
+{uri-openwc}[open-wc] recommendations.
+
+* This plugin uses the link:LICENSE[Apache License] and is intended for you to use, study, share and improve.
+
+{uri-openscd-core-plugin-demo}[Try it out online]!
+
+Feel free to log issues to request fixes, improvements or new features.
+
+== How it works
+
+=== VLANs allocated per substation
+
+[cols="1*<.^,2*^.^,1*<.^",options="header,unbreakable"]
+|===
+|Service Type
+|Prot1 VLAN Range
+|Prot2 VLAN Range
+|Comment
+
+|P1 to P2 GOOSE
+2+|1050-1099
+<.^|e.g. ARecl
+
+|GOOSE
+|1000-1049
+|2000-2049
+|e.g. Interlocking, SPS schemes across a bus
+
+|SV
+|1050-1099
+|2050-2099
+|e.g. VT Selection, Synch Check and Deadline Charge, Remote Synch
+|===
+
+=== VLANs allocated per bus
+
+[cols="1*<.^,2*^.^,1*<.^",options="header,unbreakable"]
+|===
+|Service Type
+|Prot1 VLAN Range
+|Prot2 VLAN Range
+|Comment
+
+|P1 to P2 GOOSE
+2+|50-99
+<.^|ARecl Initiate, ARecl Block, Cross tripping if required, Event triggering
+
+|(Bus and Bay Level) GOOSE
+|100-149
+|200-249
+|Bus protection, SPS schemes within a bus
+
+|(Bus and Bay Level) SV
+|150-199
+|250-299
+|Bay protections
+
+|===
+
+=== Rules
+
+* Protection 1 or 2 is identified by:
+** Protection 1 has an odd numbered last digit
+** Protection 2 has an even numbered last digit
+
+* Service Types, once allocated to VLANs cannot be unallocated.
+* No more granular allocation other than included above is permissible to avoid having to have allocation tables.
+* We won't store port allocations in the SCL, that will come from networking team or the IPAM/DCIM tool
+
+* Identification of Service Types will be done based on publishing information as follows:
+
+** On the control block name, e.g. control blocks beginning with the following have the indicated allocations:
+*** GOOSE `Ind`, `Ctl` and `Test` is within the bus
+*** GOOSE `Intlk` is within the station
+*** GOOSE `ARecl` is within the station
+*** GOOSE `EveTrig` is within the station
+*** GOOSE `SPSBus` is within the bus
+*** GOOSE `SPSStn` is within the station
+
+** On the `smvID` parameter in the control block (as e.g. IEC 61869-9 governs the `SampledValueControl` control block name and the `DataSet` name). This has to be unique substation wide, so the suffix of this value is used to classify the traffic:
+*** `Bay` or `Bus` -- Belongs to the bus
+*** `VTSel` -- Belongs to the station
+
+* Buses are determine by a Function named `CommAddressing` under a Bay in the `Substation` section with a `name` which begins `Bus` followed by an underscore and the bus name.
+* The bus name is the definition of "bus" in the above.
+* Within the function, there will be a single `LPHD` for each device.
+* This will be for Generation 1 substations (at least for this initial prototype) 
++
+[source,xml]
+----
+<Bay xmlns="http://www.iec.ch/61850/2003/SCL" name="Bus_A">
+	<ConnectivityNode name="CN_BusA" pathName="XAT/V220/BusA/CN_BusA"/>
+	<Function name="CommAddressing">
+		<LNode iedName="SOM_102_P2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="0"/>
+		<LNode iedName="SOM_102_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
+		<LNode iedName="XAT_232_P2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="0"/>
+		<LNode iedName="XAT_278_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
+		<LNode iedName="XAT_T1_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
+		<LNode iedName="XAT_BusA_P2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
+		<LNode iedName="XAT_T1_P2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="0"/>
+		<LNode iedName="XAT_232_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
+		<LNode iedName="XAT_220_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
+	</Function>
+</Bay>
+----
+
+* We need to be able to show the Bay and Bus VLANs (but read-only)
+
+Currently we have a menu plugin which exports communication information `ExportMulticastAddresses.ts`
+This could be enhanced to use our custom name space to show subscribing and publishing, grouping by bus and including the `smvId`.
+
+We will augment the existing `TP Multicast Naming` plugin to do these functions.
+This already provides quite a granular interface (GOOSE, SV, Prot1, Prot2) and we will enhance this to allow a view of Buses.
+
+This plugin will be used by the user manually selecting any new control blocks which need to be addressed.
+We will rely on diff functionality to show the differences (yet to be developed)
+
+// What is the XAT_T1_P2 > E mean??
+// Should we also be doing IP addressing? If not, why not?
+// Then our export should include IP addresses, but perhaps that's the IPAM/DCIM information. Something has to give the information.
+
+=== Storing VLAN Information
+
+
+
+
+== Using the Plugin
+
+Follow the steps in <<Loading the Plugin>>.
+Once the plugin is loaded:
+
+. The plugin provides a menu option. Go to the menu in the top left and click on the plugin name.
+
+. Then click enabled and then "Close".
++
+image::../../test/screenshots/baseline/configure the plugin is initially disabled-Chromium.png[]
+
+. In either the publisher or subscriber view, click on the settings icon (a cog) and check that "Allow External Plugins" is checked.
+
+. The plugin will automatic add or remove subscriptions as required.
+
+== Loading the Plugin
+
+=== Online Using the Latest open-scd-core
+
+==== Using a URL
+
+Open SCD core allows plugins to be loaded from a URL.
+
+You can click on {uri-openscd-core-plugin}[this link] to trial this plugin.
+
+In this view it is without theming and only presents this plugin along with the open and save plugins.
+
+==== Manually
+
+. The latest core is available at {uri-openscd-core-app}.
+
+. Go to menu:Menu[Add plugins...]
+
+. Select Cancel - this is an editor plugin.
+
+. Select OK to required a loaded document.
+
+. Choose a plugin name of '{plugin-name}'.
+
+. Choose a plugin icon of 'link'
+
+. Provide a plugin source URI of: {uri-ci-bundle}
+
+. Click OK on the summary, it should indicate the parameters previously entered.
+
+. Open a file and enjoy!
+
+=== Locally for testing
+
+. Clone this project:
++
+[subs=+attributes]
+....
+$ git clone {uri-plugin}
+....
+
+. Install dependencies
+
+  $ npm i
+
+. Start up a demo server 
+
+  $ npm run start
+
+. Open in your browser locally at http://localhost:8000/demo/
+
+=== As part of the OpenSCD distribution
+
+TIP: OpenSCD is transitioning to use of `open-scd-core`, these instructions will require updating at the end of this transition.
+
+. Open your OpenSCD distribution or use {uri-openscd-app}.
+
+. Create a custom extension by going to menu:menu[Extensions>Add Custom Extension].
+
+. Enter the name '{plugin-name}', select 'Menu entry' and enter {uri-ci-bundle} as the URL.
++
+This is the URL of the bundle built by CI and is always the latest pre-release version of this plugin.
++
+.OpenSCD Add Custom Extension Screen
+image::screenshot-add-extension.png[width=300]
+
+. Click on menu:Add[].
+
+. This plugin is now available in the menu entry.
+
+=== As part of your own distribution
+
+==== Within the current OpenSCD distribution
+
+. Within the current OpenSCD distribution, plugins are stored in the `public/js/plugins.js` folder. 
+Each plugin appears in the following form:
++
+[source,js,subs=+attributes]
+----
+{
+    name: '{plugin-name}', // <.>
+    src: '{uri-ci-bundle}', //  <.>
+    icon: 'sim_card_download', // <.>
+    default: true, // <.>
+    kind: 'menu', // <.>
+    requireDoc: true, // <.>
+    position: 'middle' // <.>
+  }
+----
+<.> Name of the plugin which appears in the editor menu at top of screen
+<.> URL which can be a local or remote resource. 
+For a local resource, begins without a forward slash, e.g. `plugins/oscd-tp-multicast-naming/dist/oscd-tp-multicast-naming.js`. 
+In this case what is shown is loading a plugin from the build process.
+<.> A material icon, see others at {uri-material-icons}[Material Symbols and Icons]
+<.> Whether the plugin is enabled by default or has to be enabled in the plugins menu
+<.> The type of plugin, either `menu` or `editor`. This is an `editor` plugin.
+<.> Whether a document must be loaded for this plugin to be available
+<.> A string, either `top`, `middle` or `bottom` to give a location in the menu. 
+Otherwise inferred from the order in the file relative to other plugins.
+
+. You need to copy an entry like the above, ensure the `src` URL resolves and the plugin should be loaded when the distribution is built.
+
+. If you are building locally you likely need to run an `npm run bundle` command in each plugin to make the `dist` folder, containing a single JavaScript file with the plugin available to OpenSCD.
+
+==== Within an OpenSCD core distribution
+
+Within an OpenSCD core distribution, plugins are also loaded from a json file with a slightly different schema.
+
+. Typically the distribution will be served from a static web page and within the web page there will be a plugins property declared on an `open-scd` object, for instance:
++
+[source,js,subs=+attributes]
+----
+include::demo/index.html[tag=plugins]
+----
+
+. This plugin is an editor plugin, editor plugins are an array of JSON of the following form:
++
+[source,js,subs=+attributes]
+----
+{
+  "name": "{plugin-name}", // <.>
+  "translations": { // <.>
+    "de": "Kommunikationsexport", 
+    "pt":"Exportação de Comunicações"
+  },
+  "icon": "sim_card_download", // <.>
+  "active": true, // <.>
+  "requireDoc": true, // <.>
+  "src": "/dist/oscd-tp-multicast-naming.js" // <.>
+}
+----
+<.> Name of the plugin which appears in the editor menu at top of screen
+<.> Translations of the plugin name as required using standard locale names.
+<.> A material icon, see others at {uri-material-icons}[Material Symbols and Icons]
+<.> Whether the plugin is enabled by default or has to be enabled in the plugins menu
+<.> Whether a document must be loaded for this plugin to be available
+<.> URL which can be a local or remote resource. 
+For a local resource, begins with a forward slash, e.g. `plugins/oscd-tp-multicast-naming/dist/oscd-tp-multicast-naming.js`. 
+In this case what is shown is loading a plugin from the internet using the continuous integration build process.
+
+. You need to copy an entry like the above, ensure the `src` URL resolves and the plugin should be loaded when the distribution is built.
+
+. If you are building locally you likely need to run an `npm run bundle` command in each plugin to make the `dist` folder, containing a single JavaScript file with the plugin available to OpenSCD.
+
+== Development
+
+=== Linting and formatting
+
+To scan the project for linting and formatting errors, run
+
+[source,bash]
+----
+npm run lint
+----
+
+To automatically fix linting and formatting errors, run
+
+[source,bash]
+----
+npm run format
+----
+
+=== Testing with Web Test Runner
+
+To execute a single test run:
+
+[source,bash]
+----
+npm run test
+----
+
+To run the tests in interactive watch mode run:
+
+[source,bash]
+----
+npm run test:watch
+----
+
+=== Tooling configs
+
+For most of the tools, the configuration is in the `package.json` to reduce the number of files in your project.
+
+If you customize the configuration a lot, you can consider moving them to individual files.
+
+=== Local Demo with `web-dev-server`
+
+To run a local development server that serves the basic demo located in `demo/index.html`
+
+[source,bash]
+----
+npm start
+----
+
+© 2023 Daniel Mulholland

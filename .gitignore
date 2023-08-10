@@ -1,0 +1,20 @@
+## npm
+/node_modules/
+/npm-debug.log
+
+## testing
+/coverage/
+
+# build
+/locales.ts
+/locales
+/dist
+/custom-elements.json
+/.tsbuildinfo
+/.rollup.cache
+
+# IDE
+/.idea
+
+# visual test fails
+/test/screenshots/failed
