@@ -1,15 +1,13 @@
 /* eslint-disable no-return-assign */
-import { css, html, LitElement, PropertyValueMap, TemplateResult } from 'lit';
+import { css, html, LitElement, TemplateResult } from 'lit';
 import { property, query } from 'lit/decorators.js';
 
-import { Dialog } from '@material/mwc-dialog';
-
 import '@material/mwc-button';
-
 import '@material/mwc-checkbox';
 import '@material/mwc-formfield';
 import '@material/mwc-icon-button';
 import '@material/mwc-list/mwc-list-item';
+import '@material/mwc-menu';
 
 import '@vaadin/grid';
 import '@vaadin/checkbox';
@@ -18,15 +16,19 @@ import '@vaadin/grid/theme/material/vaadin-grid.js';
 import '@vaadin/grid/theme/material/vaadin-grid-filter-column.js';
 import '@vaadin/grid/theme/material/vaadin-grid-selection-column.js';
 
-import { columnBodyRenderer, columnHeaderRenderer } from '@vaadin/grid/lit.js';
+import { columnBodyRenderer } from '@vaadin/grid/lit.js';
 
+import type { Button } from '@material/mwc-button';
 import type { List, MWCListIndex } from '@material/mwc-list';
-import type { Grid } from '@vaaadin/grid';
-import { Edit, newEditEvent } from '@openscd/open-scd-core';
+import type { Menu } from '@material/mwc-menu';
+import type { Grid, GridSelectedItemsChangedEvent } from '@vaadin/grid';
 
+import { Edit, newEditEvent } from '@openscd/open-scd-core';
+import { ListItemBase } from '@material/mwc-list/mwc-list-item-base.js';
 import { identity } from './foundation/identities/identity.js';
-import { gooseIcon, smvIcon } from './foundation/icons/icons.js';
-import { compareNames } from './src/foundation/foundation.js';
+import { selector } from './foundation/identities/selector.js';
+// import { gooseIcon, smvIcon } from './foundation/icons/icons.js';
+// import { compareNames } from './src/foundation/foundation.js';
 
 type MacObject = {
   [key: string]: {
@@ -177,25 +179,6 @@ function getProtectionNumber(iedName: string): string {
   return '1';
 }
 
-function selectProtections(iedName: string, protection: string): boolean {
-  const protectionNumber = iedName.slice(-1);
-  if (protection.includes('1') && !isEven(parseInt(protectionNumber, 10))) {
-    return true;
-  }
-  if (protection.includes('2') && isEven(parseInt(protectionNumber, 10))) {
-    return true;
-  }
-  return false;
-}
-
-function selectControlBlockTypes(goose: boolean, smv: boolean): string {
-  return `${goose ? 'GSE' : ''}${goose && smv ? ',' : ''}${smv ? 'SMV' : ''}`;
-}
-
-function translate(str: string): string {
-  return str;
-}
-
 function getCommAddress(ctrlBlock: Element): Element {
   const doc = ctrlBlock.ownerDocument;
 
@@ -239,6 +222,28 @@ export default class TPMulticastNaming extends LitElement {
   @property()
   protection2 = true;
 
+  @property()
+  selectedBus: string = '';
+
+  // TODO: Refactor for performance.
+  @property({ type: Map })
+  get busConnections(): Map<string, string> {
+    if (!this.doc) return new Map();
+    const bcs = new Map<string, string>();
+    Array.from(
+      this.doc.querySelectorAll(
+        'Substation > VoltageLevel > Bay > Function[name="BusPhysConnection"]'
+      )
+    ).forEach(physConn => {
+      const bayName = physConn.closest('Bay')?.getAttribute('name')!;
+      physConn.querySelectorAll('LNode').forEach(lNode => {
+        const iedName = lNode.getAttribute('iedName')!;
+        bcs.set(iedName, bayName);
+      });
+    });
+    return bcs;
+  }
+
   @property({ attribute: false })
   selectedControlItems: MWCListIndex | [] = [];
 
@@ -248,34 +253,26 @@ export default class TPMulticastNaming extends LitElement {
   @query('.selection-list')
   cbList: List | undefined;
 
-  // async run(): Promise<void> {
-  //   this.dialog.open = true;
-  //   this.cbList?.addEventListener('selected', () => {
-  //     this.selectedControlItems = this.cbList!.index;
-  //   });
-  // }
+  @query('#busConnectionMenuButton')
+  busConnectionMenuButtonUI?: Button;
 
-  // eslint-disable-next-line class-methods-use-this
-  private onClosed(ae: CustomEvent<{ action: string } | null>): void {
-    // eslint-disable-next-line no-useless-return
-    if (!(ae.target instanceof Dialog && ae.detail?.action)) return;
-  }
+  @query('#busConnectionMenu')
+  busConnectionMenuUI?: Menu;
 
   renderFilterButtons(): TemplateResult {
-    return html`<div class="multicast-naming-type-selector">
-      <mwc-formfield label="GOOSE"
+    return html`<div id="filterSelector">
+      <mwc-formfield label="GOOSE" alignEnd
         ><mwc-checkbox
           value="GOOSE"
           ?checked=${this.publisherGOOSE}
           @change=${() => {
             this.publisherGOOSE = !this.publisherGOOSE;
             this.gridItems = [];
-            this.grid.clearCache();
             this.updateContent();
-            this.grid.requestContentUpdate();
           }}
-        ></mwc-checkbox></mwc-formfield
-      ><mwc-formfield label="Sampled Value"
+        ></mwc-checkbox
+      ></mwc-formfield>
+      <mwc-formfield label="Sampled Value" alignEnd
         ><mwc-checkbox
           value="SampledValue"
           ?checked=${this.publisherSMV}
@@ -283,31 +280,56 @@ export default class TPMulticastNaming extends LitElement {
             this.publisherSMV = !this.publisherSMV;
             this.gridItems = [];
             this.updateContent();
-            this.grid.clearCache();
-            this.grid.requestContentUpdate();
-            // this.requestUpdate();
           }}
         ></mwc-checkbox
       ></mwc-formfield>
-      <mwc-formfield label="Prot 1"
+      <mwc-formfield label="Prot 1" alignEnd
         ><mwc-checkbox
           ?checked=${this.protection1}
           @change=${() => {
             this.protection1 = !this.protection1;
             this.gridItems = [];
             this.updateContent();
-            this.grid.clearCache();
-            this.grid.requestContentUpdate();
-            // this.requestUpdate();
           }}
         ></mwc-checkbox
       ></mwc-formfield>
-      <mwc-formfield label="Prot 2"
+      <mwc-formfield label="Prot 2" alignEnd
         ><mwc-checkbox
           ?checked=${this.protection2}
-          @change=${() => (this.protection2 = !this.protection2)}
+          @change=${() => {
+            this.protection2 = !this.protection2;
+            this.gridItems = [];
+            this.updateContent();
+          }}
         ></mwc-checkbox
       ></mwc-formfield>
+      <mwc-formfield
+        id="busConnectionMenuButton"
+        label="${this.selectedBus === '' ? 'Select a Bus' : this.selectedBus}"
+        ?disabled=${Array.from(this.busConnections.keys()).length === 0}
+        alignEnd
+        ><mwc-icon-button
+          icon="expand_more"
+          ?disabled=${Array.from(this.busConnections.keys()).length === 0}
+          @click=${() => {
+            if (!(Array.from(this.busConnections.keys()).length === 0))
+              this.busConnectionMenuUI!.show();
+          }}
+        ></mwc-icon-button>
+      </mwc-formfield>
+      <mwc-menu id="busConnectionMenu" corner="BOTTOM_RIGHT" menuCorner="END">
+        ${[...new Set(this.busConnections.values())].map(
+          busName => html`<mwc-list-item
+            graphic="icon"
+            left
+            ?selected=${this.selectedBus === busName}
+            value="${busName}"
+          >
+            <span>${busName}</span>
+            <mwc-icon slot="graphic">check</mwc-icon>
+          </mwc-list-item> `
+        )}
+      </mwc-menu>
     </div>`;
   }
 
@@ -322,31 +344,29 @@ export default class TPMulticastNaming extends LitElement {
       .filter(control => {
         const iedName =
           control.closest('IED')?.getAttribute('name') ?? 'Unknown IED';
-        console.log(
-          protections.includes(getProtectionNumber(iedName)),
-          iedName,
-          protections
-        );
+
         return (
           ((control.tagName === 'GSEControl' && this.publisherGOOSE) ||
             (control.tagName === 'SampledValueControl' && this.publisherSMV)) &&
-          protections.includes(getProtectionNumber(iedName))
+          protections.includes(getProtectionNumber(iedName)) &&
+          (this.selectedBus === this.busConnections.get(iedName) ||
+            this.selectedBus === '')
         );
       })
       .forEach(control => {
         const address = getCommAddress(control);
         const ied = control.closest('IED');
-
+        const iedName = ied!.getAttribute('name')!;
         const rowItem = {
-          iedName: ied!.getAttribute('name')!,
+          iedName,
           iedType: ied!.getAttribute('type')!,
+          busRef: this.busConnections.get(iedName) ?? '',
           type: address?.tagName,
           cbName: control.getAttribute('name'),
           appOrSmvId:
             control.tagName === 'GSEControl'
               ? control.getAttribute('appID') ?? ''
               : control.getAttribute('smvID') ?? '',
-          apName: address?.closest('ConnectedAP')?.getAttribute('apName') ?? '',
           mac:
             address?.querySelector('Address > P[type="MAC-Address"]')
               ?.textContent ?? '',
@@ -361,27 +381,36 @@ export default class TPMulticastNaming extends LitElement {
               ?.textContent ?? '',
           minTime: address?.querySelector('MinTime')?.textContent ?? '',
           maxTime: address?.querySelector('MaxTime')?.textContent ?? '',
+          controlIdentity: identity(control),
+          addressIdentity: identity(address),
         };
 
-        // if (this.grid) {
         if (this.gridItems) {
           this.gridItems.push({ ...rowItem });
         } else {
           this.gridItems = [{ ...rowItem }];
         }
-        // }
       });
-    console.log(this.gridItems);
-  }
-
-  protected updated(
-    _changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>
-  ): void {
-    // this.gridItems = [];
-    // this.updateContent();
   }
 
   async firstUpdated(): Promise<void> {
+    this.busConnectionMenuUI!.anchor = <HTMLElement>(
+      this.busConnectionMenuButtonUI
+    );
+
+    this.busConnectionMenuUI!.addEventListener('closed', () => {
+      const busListItem =
+        (<ListItemBase>this.busConnectionMenuUI?.selected).value ?? '';
+      if (this.selectedBus === busListItem) {
+        this.selectedBus = '';
+      } else {
+        this.selectedBus = busListItem;
+      }
+
+      this.gridItems = [];
+      this.updateContent();
+    });
+
     // if (!this.doc) return;
     // ${Array.from(
     //   noSelectedComms
@@ -442,6 +471,12 @@ export default class TPMulticastNaming extends LitElement {
     // this.updateContent();
   }
 
+  // protected updated(
+  //   _changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>
+  // ): void {
+  //   console.log(this.busConnectionMenuButtonUI, this.busConnectionMenuUI)
+  // }
+
   renderSelectionList(): TemplateResult {
     if (!this.doc) return html``;
 
@@ -452,26 +487,22 @@ export default class TPMulticastNaming extends LitElement {
         id="grid"
         column-reordering-allowed
         overflow="bottom"
+        theme="compact row-stripes"
         .items=${this.gridItems}
+        @selected-items-changed="${(
+          event: GridSelectedItemsChangedEvent<any>
+        ) => {
+          this.selectedItems = event.target
+            ? [...event.detail.value]
+            : this.selectedItems;
+        }}"
       >
         <vaadin-grid-selection-column
-          ${columnHeaderRenderer(
-            () =>
-              html`<mwc-checkbox
-                ?indeterminate=${this.grid.selectedItems.length > 1 &&
-                this.grid.selectedItems.length !== this.gridItems.length}
-                ?checked=${this.grid.selectedItems.length ===
-                this.gridItems.length}
-              ></mwc-checkbox>`,
-            []
-          )}
-          ${columnBodyRenderer<any>(
-            ({ selected }) =>
-              html`<mwc-checkbox ?checked=${selected}></mwc-checkbox>`,
-            []
-          )}
+          auto-select
+          frozen
         ></vaadin-grid-selection-column>
         <vaadin-grid-filter-column
+          frozen
           path="iedName"
           header="IED Name"
         ></vaadin-grid-filter-column>
@@ -484,6 +515,11 @@ export default class TPMulticastNaming extends LitElement {
           header="Type"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
+          id="busRef"
+          path="busRef"
+          header="Bus Reference"
+        ></vaadin-grid-filter-column>
+        <vaadin-grid-filter-column
           id="cb"
           path="cbName"
           header="Control Name"
@@ -492,11 +528,6 @@ export default class TPMulticastNaming extends LitElement {
           id="cb"
           path="appOrSmvId"
           header="App or SMV Id"
-        ></vaadin-grid-filter-column>
-        <vaadin-grid-filter-column
-          id="ap"
-          path="apName"
-          header="apName"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
           ${columnBodyRenderer<any>(
@@ -537,9 +568,6 @@ export default class TPMulticastNaming extends LitElement {
       </vaadin-grid>
     `;
   }
-
-  // <!-- .renderer="${this.doDataSetRendering}" -->
-  // https://github.com/openscd/open-scd/pull/568/commits/056ef7424a2503dcff948e6f65497069f29d4107
 
   updateCommElements(selectedCommElements: Element[]): void {
     // MAC Addresses
@@ -679,31 +707,35 @@ export default class TPMulticastNaming extends LitElement {
   }
 
   renderButtons(): TemplateResult {
-    const sizeSelectedItems = (<Set<number>>this.selectedControlItems).size;
+    const sizeSelectedItems = this.selectedItems.length;
     return html`<mwc-button
       outlined
       icon="drive_file_rename_outline"
       class="rename-button"
-      label="Rename GOOSE and SMV (${sizeSelectedItems || '0'})"
+      label="Address GOOSE and SMV (${sizeSelectedItems || '0'})"
       slot="primaryAction"
-      ?disabled=${(<Set<number>>this.selectedControlItems).size === 0 ||
-      (Array.isArray(this.selectedControlItems) &&
-        !this.selectedControlItems.length)}
+      ?disabled=${sizeSelectedItems === 0}
       @click=${() => {
-        const selectedCommElements = Array.from(
-          (<Set<number>>this.selectedControlItems).values()
-        ).map(index => this.commElements[index]);
+        const selectedCommElements = (<any>this.selectedItems).map(
+          (item: { addressTag: string; addressIdentity: string | number }) => {
+            const gSEorSMV = this.doc.querySelector(
+              selector(item.addressTag, item.addressIdentity)
+            )!;
+            return gSEorSMV;
+          }
+        );
         this.updateCommElements(selectedCommElements);
+        this.updateContent();
       }}
     >
     </mwc-button>`;
   }
 
   render(): TemplateResult {
-    return html`
+    return html`<section>
       ${this.renderFilterButtons()} ${this.renderSelectionList()}
       ${this.renderButtons()}
-    `;
+    </section> `;
   }
 
   static styles = css`
@@ -711,9 +743,10 @@ export default class TPMulticastNaming extends LitElement {
       width: auto;
       margin: 1rem;
       margin-right: 2rem;
-      height: 400px;
+      height: calc(100vh - 250px);
     }
 
+    /* ensures with material theme scrolling doesn't cut through header */
     vaadin-grid::part(header-cell) {
       background-color: white;
     }
@@ -723,25 +756,33 @@ export default class TPMulticastNaming extends LitElement {
       color: darkgray;
     }
 
-    /* vaadin-grid > vaadin-checkbox {
-
+    #filterSelector {
+      position: relative;
+      max-width: fit-content;
     }
 
-    vaadin-grid > #selectAllCheckbox {
+    #filterSelector > mwc-formfield {
+      padding-right: 20px;
+    }
 
-    } */
+    section {
+      padding: 15px;
+    }
+
+    /* Hide the icon of unselected menu items that are in a group */
+    #busConnectionMenu > [mwc-list-item]:not([selected]) [slot='graphic'] {
+      display: none;
+    }
 
     /* matching vaadin-grid material themes with open-scd themes */
     * {
-      --material-body-text-color: var(--base00);
-      --material-secondary-text-color: var(--base00);
-      --material-primary-text-color: var(--base01);
-      --material-error-text-color: var(--red);
-      --material-primary-color: var(--primary);
-      --material-error-color: var(--red);
-      --material-background-color: var(--base3);
-
-      --lumo-primary-color: var(--primary, blue);
+      --material-body-text-color: var(--base00, black);
+      --material-secondary-text-color: var(--base00, gray);
+      --material-primary-text-color: var(--base01, black);
+      --material-error-text-color: var(--red, red);
+      --material-primary-color: var(--primary, purple);
+      --material-error-color: var(--red, red);
+      --material-background-color: var(--base3, white);
     }
   `;
 }

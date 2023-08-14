@@ -36,6 +36,7 @@
     "@material/mwc-formfield": "^0.27.0",
     "@material/mwc-icon-button": "^0.27.0",
     "@material/mwc-list": "^0.27.0",
+    "@material/mwc-menu": "^0.27.0",
     "@openenergytools/scl-lib": "^0.2.2",
     "@openscd/open-scd-core": "^0.0.2",
     "@openscd/oscd-filtered-list": "^1.1.0",
