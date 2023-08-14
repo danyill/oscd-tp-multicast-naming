@@ -1,5 +1,5 @@
 /* eslint-disable no-return-assign */
-import { css, html, LitElement, TemplateResult } from 'lit';
+import { css, html, LitElement, PropertyValueMap, TemplateResult } from 'lit';
 import { property, query } from 'lit/decorators.js';
 
 import '@material/mwc-button';
@@ -471,11 +471,13 @@ export default class TPMulticastNaming extends LitElement {
     // this.updateContent();
   }
 
-  // protected updated(
-  //   _changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>
-  // ): void {
-  //   console.log(this.busConnectionMenuButtonUI, this.busConnectionMenuUI)
-  // }
+  protected updated(
+    _changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>
+  ): void {
+    if (_changedProperties.has('doc')) {
+      this.updateContent();
+    }
+  }
 
   renderSelectionList(): TemplateResult {
     if (!this.doc) return html``;
@@ -574,8 +576,8 @@ export default class TPMulticastNaming extends LitElement {
     const ignoreMACs = selectedCommElements.map(
       elem =>
         elem
-          .querySelector('Address > P[type="MAC-Address"]')!
-          .textContent?.toUpperCase() ?? ''
+          ?.querySelector('Address > P[type="MAC-Address"]')
+          ?.textContent?.toUpperCase() ?? ''
     );
 
     const nextMac: MacObject = {
@@ -593,8 +595,8 @@ export default class TPMulticastNaming extends LitElement {
     const ignoreAppIds = selectedCommElements.map(
       elem =>
         elem
-          .querySelector('Address > P[type="APPID"]')!
-          .textContent?.toUpperCase() ?? ''
+          ?.querySelector('Address > P[type="APPID"]')!
+          ?.textContent?.toUpperCase() ?? ''
     );
 
     const nextAppId: AppObject = {
@@ -716,15 +718,24 @@ export default class TPMulticastNaming extends LitElement {
       slot="primaryAction"
       ?disabled=${sizeSelectedItems === 0}
       @click=${() => {
-        const selectedCommElements = (<any>this.selectedItems).map(
-          (item: { addressTag: string; addressIdentity: string | number }) => {
-            const gSEorSMV = this.doc.querySelector(
-              selector(item.addressTag, item.addressIdentity)
-            )!;
-            return gSEorSMV;
-          }
-        );
+        if (!this.doc) return;
+
+        const selectedCommElements = (<any>this.selectedItems)
+          .map(
+            (item: {
+              addressTag: string;
+              addressIdentity: string | number;
+            }) => {
+              const gSEorSMV = this.doc.querySelector(
+                selector(item.addressTag, item.addressIdentity)
+              )!;
+              return gSEorSMV;
+            }
+          )
+          .filter((e: Element | null) => e !== null);
+
         this.updateCommElements(selectedCommElements);
+
         this.updateContent();
       }}
     >
