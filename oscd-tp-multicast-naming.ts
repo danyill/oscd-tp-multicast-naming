@@ -68,6 +68,8 @@ const VLAN_GSE_P2 = 1006;
 const VLAN_SMV_P1 = 1001;
 const VLAN_SMV_P2 = 1007;
 
+const TPNS = 'https://transpower.co.nz/SCL/SCD/Communication/v1';
+
 function convertToMac(mac: number): string {
   const str = 0 + mac.toString(16).toUpperCase();
   const arr = str.match(/.{1,2}/g)!;
@@ -528,10 +530,12 @@ export default class TPMulticastNaming extends LitElement {
         <vaadin-grid-filter-column
           path="iedType"
           header="IED Type"
+          width="40px"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
           path="type"
           header="Type"
+          width="40px"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
           id="busRef"
@@ -547,6 +551,7 @@ export default class TPMulticastNaming extends LitElement {
           id="cb"
           path="appOrSmvId"
           header="App or SMV Id"
+          width="140px"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
           ${columnBodyRenderer<any>(
@@ -563,26 +568,31 @@ export default class TPMulticastNaming extends LitElement {
           id="appId"
           path="appId"
           header="APP ID"
+          width="40px"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
           id="vlanId"
           path="vlanId"
           header="vlanId"
+          width="40px"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
           id="vlanPriority"
           path="vlanPriority"
           header="vlanPriority"
+          width="40px"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
           id="minTime"
           path="minTime"
           header="minTime"
+          width="40px"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
           id="maxTime"
           path="maxTime"
           header="maxTime"
+          width="40px"
         ></vaadin-grid-filter-column>
       </vaadin-grid>
     `;
@@ -631,7 +641,57 @@ export default class TPMulticastNaming extends LitElement {
       },
     };
 
-    const edits: Edit[] = [];
+    let edits: Edit[] = [];
+
+    // update namespaces
+    const namespaceUpdate: Edit = {
+      element: this.doc.documentElement,
+      attributes: {},
+    };
+
+    if (!this.doc.documentElement.hasAttribute('xmlns:etpc'))
+      namespaceUpdate.attributes = {
+        ...namespaceUpdate.attributes,
+        'xmlns:etpc': {
+          value: TPNS,
+          namespaceURI: 'http://www.w3.org/2000/xmlns/',
+        },
+      };
+
+    if (!(Object.entries(namespaceUpdate.attributes).length === 0))
+      edits.push(namespaceUpdate);
+
+    // update appId for GSEControl and smvId for SampledValueControls
+    selectedControlElements.forEach(control => {
+      console.log(control);
+      const type = control.tagName;
+      const iedName = control.closest('IED')!.getAttribute('name');
+
+      if (type === 'GSEControl') {
+        const cbName = control.getAttribute('name') ?? 'Unknown';
+        const update = {
+          element: control,
+          attributes: { appID: `${iedName}/${cbName}` },
+        };
+        edits.push(update);
+      }
+
+      if (type === 'SampledValueControl') {
+        const smvID = control.getAttribute('name') ?? 'Unknown';
+        const update = {
+          element: control,
+          attributes: {
+            smvID: `${iedName}${smvID === 'TEMPLATE' ? '' : `/${smvID}`}`,
+          },
+        };
+        edits.push(update);
+      }
+    });
+
+    if (edits) {
+      this.dispatchEvent(newEditEvent(edits));
+      edits = [];
+    }
 
     selectedCommElements.forEach(element => {
       // for comparison to detect changes
@@ -727,33 +787,6 @@ export default class TPMulticastNaming extends LitElement {
        */
     });
 
-    // update appId for GSEControl and smvId for SampledValueControls
-    selectedControlElements.forEach(control => {
-      console.log(control);
-      const type = control.tagName;
-      const iedName = control.closest('IED')!.getAttribute('name');
-
-      if (type === 'GSEControl') {
-        const appID = control.getAttribute('appID') ?? 'Unknown';
-        const update = {
-          element: control,
-          attributes: { appID: `${iedName}/${appID}` },
-        };
-        edits.push(update);
-      }
-
-      if (type === 'SampledValueControl') {
-        const smvID = control.getAttribute('smvID') ?? 'Unknown';
-        const update = {
-          element: control,
-          attributes: {
-            smvID: `${iedName}/${smvID === 'TEMPLATE' ? '' : smvID}`,
-          },
-        };
-        edits.push(update);
-      }
-    });
-
     if (edits) {
       this.dispatchEvent(newEditEvent(edits));
     }
@@ -762,47 +795,93 @@ export default class TPMulticastNaming extends LitElement {
   renderButtons(): TemplateResult {
     const sizeSelectedItems = this.selectedItems.length;
     return html`<mwc-button
-      outlined
-      icon="drive_file_rename_outline"
-      class="rename-button"
-      label="Address GOOSE and SMV (${sizeSelectedItems || '0'})"
-      slot="primaryAction"
-      ?disabled=${sizeSelectedItems === 0}
-      @click=${() => {
-        if (!this.doc) return;
+        outlined
+        icon="drive_file_rename_outline"
+        class="rename-button"
+        label="Address GOOSE and SMV (${sizeSelectedItems || '0'})"
+        ?disabled=${sizeSelectedItems === 0}
+        @click=${() => {
+          if (!this.doc) return;
 
-        const selectedCommElements = (<any>this.selectedItems)
-          .map((item: { type: string; addressIdentity: string | number }) => {
-            const gSEorSMV = this.doc.querySelector(
-              selector(item.type, item.addressIdentity)
-            )!;
-            return gSEorSMV;
-          })
-          .filter((e: Element | null) => e !== null);
+          const selectedCommElements = (<any>this.selectedItems)
+            .map((item: { type: string; addressIdentity: string | number }) => {
+              const gSEorSMV = this.doc.querySelector(
+                selector(item.type, item.addressIdentity)
+              )!;
+              return gSEorSMV;
+            })
+            .filter((e: Element | null) => e !== null);
 
-        const selectedControlElements = (<any>this.selectedItems)
-          .map((item: { type: string; controlIdentity: string | number }) => {
-            const control = this.doc.querySelector(
-              selector(
-                item.type === 'GSE' ? 'GSEControl' : 'SampledValueControl',
-                item.controlIdentity
-              )
-            )!;
-            return control;
-          })
-          .filter((e: Element | null) => e !== null);
+          const selectedControlElements = (<any>this.selectedItems)
+            .map((item: { type: string; controlIdentity: string | number }) => {
+              const control = this.doc.querySelector(
+                selector(
+                  item.type === 'GSE' ? 'GSEControl' : 'SampledValueControl',
+                  item.controlIdentity
+                )
+              )!;
+              return control;
+            })
+            .filter((e: Element | null) => e !== null);
 
-        this.updateCommElements(selectedCommElements, selectedControlElements);
+          this.updateCommElements(
+            selectedCommElements,
+            selectedControlElements
+          );
 
-        this.gridItems = [];
-        this.grid.selectedItems = [];
-        this.selectedItems = [];
+          this.gridItems = [];
+          this.grid.selectedItems = [];
+          this.selectedItems = [];
 
-        this.updateContent();
-        this.grid.clearCache();
-      }}
-    >
-    </mwc-button>`;
+          this.updateContent();
+          this.grid.clearCache();
+        }}
+      >
+      </mwc-button>
+      <mwc-button
+        outlined
+        icon="drive_file_rename_outline"
+        class="rename-button"
+        label="Show Used VLANs (${sizeSelectedItems || '0'})"
+        ?disabled=${sizeSelectedItems === 0}
+        @click=${() => {
+          if (!this.doc) return;
+
+          const selectedCommElements = (<any>this.selectedItems)
+            .map((item: { type: string; addressIdentity: string | number }) => {
+              const gSEorSMV = this.doc.querySelector(
+                selector(item.type, item.addressIdentity)
+              )!;
+              return gSEorSMV;
+            })
+            .filter((e: Element | null) => e !== null);
+
+          const selectedControlElements = (<any>this.selectedItems)
+            .map((item: { type: string; controlIdentity: string | number }) => {
+              const control = this.doc.querySelector(
+                selector(
+                  item.type === 'GSE' ? 'GSEControl' : 'SampledValueControl',
+                  item.controlIdentity
+                )
+              )!;
+              return control;
+            })
+            .filter((e: Element | null) => e !== null);
+
+          this.updateCommElements(
+            selectedCommElements,
+            selectedControlElements
+          );
+
+          this.gridItems = [];
+          this.grid.selectedItems = [];
+          this.selectedItems = [];
+
+          this.updateContent();
+          this.grid.clearCache();
+        }}
+      >
+      </mwc-button>`;
   }
 
   render(): TemplateResult {
