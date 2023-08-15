@@ -19,7 +19,7 @@ import '@vaadin/grid/theme/material/vaadin-grid-selection-column.js';
 import { columnBodyRenderer } from '@vaadin/grid/lit.js';
 
 import type { Button } from '@material/mwc-button';
-import type { List, MWCListIndex } from '@material/mwc-list';
+import type { List } from '@material/mwc-list';
 import type { Menu } from '@material/mwc-menu';
 import type { Grid, GridSelectedItemsChangedEvent } from '@vaadin/grid';
 
@@ -100,7 +100,9 @@ export function macAddressGenerator(
   const macs = new Set(
     Array.from(
       doc.querySelectorAll(`${serviceType} > Address > P[type="MAC-Address"]`)
-    ).map(mac => mac.textContent!)
+    )
+      .map(mac => mac.textContent!)
+      .filter(mac => !ignoreMACs.includes(mac))
   );
 
   let range: string[] = [];
@@ -114,8 +116,6 @@ export function macAddressGenerator(
       protectionType === '1'
         ? macRange(SMVMAC.P1.min, SMVMAC.P1.max)
         : macRange(SMVMAC.P2.min, SMVMAC.P2.max);
-
-  range = range.filter(mac => !ignoreMACs.includes(mac));
 
   return () => {
     const uniqueMAC = range.find(mac => !macs.has(mac));
@@ -139,7 +139,9 @@ export function appIdGenerator(
   const appIds = new Set(
     Array.from(
       doc.querySelectorAll(`${serviceType} > Address > P[type="APPID"]`)
-    ).map(appId => appId.textContent!)
+    )
+      .filter(appId => !ignoreAppIds.includes(appId.textContent ?? ''))
+      .map(appId => appId.textContent!)
   );
 
   let range: string[] = [];
@@ -157,8 +159,6 @@ export function appIdGenerator(
         ? appIdRange(SMVAPPID.P1.min, SMVAPPID.P1.max)
         : appIdRange(SMVAPPID.P2.min, SMVAPPID.P2.max);
   }
-
-  range = range.filter(appId => !ignoreAppIds.includes(appId));
 
   return () => {
     const uniqueAppId = range.find(appId => !appIds.has(appId));
@@ -184,9 +184,12 @@ function getCommAddress(ctrlBlock: Element): Element {
 
   const ctrlLdInst = ctrlBlock.closest('LDevice')!.getAttribute('inst');
   const addressTag = ctrlBlock.tagName === 'GSEControl' ? 'GSE' : 'SMV';
+  const iedName = ctrlBlock.closest('IED')!.getAttribute('name');
+  const apName = ctrlBlock.closest('AccessPoint')?.getAttribute('name');
+
   const cbName = ctrlBlock.getAttribute('name');
   return doc.querySelector(
-    `${addressTag}[ldInst="${ctrlLdInst}"][cbName="${cbName}"]`
+    `Communication > SubNetwork > ConnectedAP[iedName="${iedName}"][apName="${apName}"] > ${addressTag}[ldInst="${ctrlLdInst}"][cbName="${cbName}"]`
   )!;
 }
 
@@ -243,9 +246,6 @@ export default class TPMulticastNaming extends LitElement {
     });
     return bcs;
   }
-
-  @property({ attribute: false })
-  selectedControlItems: MWCListIndex | [] = [];
 
   @property({ type: Array })
   commElements: Element[] | [] = [];
@@ -353,8 +353,18 @@ export default class TPMulticastNaming extends LitElement {
             this.selectedBus === '')
         );
       })
+      .sort((a: Element, b: Element) => {
+        const aMac =
+          getCommAddress(a)?.querySelector('Address > P[type="MAC-Address"]')
+            ?.textContent ?? '';
+        const bMac =
+          getCommAddress(b)?.querySelector('Address > P[type="MAC-Address"]')
+            ?.textContent ?? '';
+        return aMac.localeCompare(bMac);
+      })
       .forEach(control => {
         const address = getCommAddress(control);
+
         const ied = control.closest('IED');
         const iedName = ied!.getAttribute('name')!;
         const rowItem = {
@@ -472,9 +482,16 @@ export default class TPMulticastNaming extends LitElement {
   }
 
   protected updated(
-    _changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>
+    changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>
   ): void {
-    if (_changedProperties.has('doc')) {
+    super.updated(changedProperties);
+
+    // When a new document is loaded or we do a subscription/we will reset the Map to clear old entries.
+    // TODO: Be able to detect the same document loaded twice, currently lack a way to check for this
+    // https://github.com/openscd/open-scd-core/issues/92
+    if (changedProperties.has('doc')) {
+      this.gridItems = [];
+      this.selectedItems = [];
       this.updateContent();
     }
   }
@@ -571,7 +588,10 @@ export default class TPMulticastNaming extends LitElement {
     `;
   }
 
-  updateCommElements(selectedCommElements: Element[]): void {
+  updateCommElements(
+    selectedCommElements: Element[],
+    selectedControlElements: Element[]
+  ): void {
     // MAC Addresses
     const ignoreMACs = selectedCommElements.map(
       elem =>
@@ -688,7 +708,11 @@ export default class TPMulticastNaming extends LitElement {
 
       if (!element.isEqualNode(newElement)) {
         // add new elements
-        edits.push({ parent: element.parentElement!, node: newElement });
+        edits.push({
+          parent: element.parentElement!,
+          node: newElement,
+          reference: element,
+        });
 
         // remove old elements
         edits.push({ node: element });
@@ -701,6 +725,33 @@ export default class TPMulticastNaming extends LitElement {
        * followed by the GSEControl name with a $ delimiter, e.g. XAT_232_P1$Status_0
        *
        */
+    });
+
+    // update appId for GSEControl and smvId for SampledValueControls
+    selectedControlElements.forEach(control => {
+      console.log(control);
+      const type = control.tagName;
+      const iedName = control.closest('IED')!.getAttribute('name');
+
+      if (type === 'GSEControl') {
+        const appID = control.getAttribute('appID') ?? 'Unknown';
+        const update = {
+          element: control,
+          attributes: { appID: `${iedName}/${appID}` },
+        };
+        edits.push(update);
+      }
+
+      if (type === 'SampledValueControl') {
+        const smvID = control.getAttribute('smvID') ?? 'Unknown';
+        const update = {
+          element: control,
+          attributes: {
+            smvID: `${iedName}/${smvID === 'TEMPLATE' ? '' : smvID}`,
+          },
+        };
+        edits.push(update);
+      }
     });
 
     if (edits) {
@@ -721,22 +772,34 @@ export default class TPMulticastNaming extends LitElement {
         if (!this.doc) return;
 
         const selectedCommElements = (<any>this.selectedItems)
-          .map(
-            (item: {
-              addressTag: string;
-              addressIdentity: string | number;
-            }) => {
-              const gSEorSMV = this.doc.querySelector(
-                selector(item.addressTag, item.addressIdentity)
-              )!;
-              return gSEorSMV;
-            }
-          )
+          .map((item: { type: string; addressIdentity: string | number }) => {
+            const gSEorSMV = this.doc.querySelector(
+              selector(item.type, item.addressIdentity)
+            )!;
+            return gSEorSMV;
+          })
           .filter((e: Element | null) => e !== null);
 
-        this.updateCommElements(selectedCommElements);
+        const selectedControlElements = (<any>this.selectedItems)
+          .map((item: { type: string; controlIdentity: string | number }) => {
+            const control = this.doc.querySelector(
+              selector(
+                item.type === 'GSE' ? 'GSEControl' : 'SampledValueControl',
+                item.controlIdentity
+              )
+            )!;
+            return control;
+          })
+          .filter((e: Element | null) => e !== null);
+
+        this.updateCommElements(selectedCommElements, selectedControlElements);
+
+        this.gridItems = [];
+        this.grid.selectedItems = [];
+        this.selectedItems = [];
 
         this.updateContent();
+        this.grid.clearCache();
       }}
     >
     </mwc-button>`;

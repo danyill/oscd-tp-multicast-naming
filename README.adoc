@@ -52,7 +52,7 @@ Feel free to log issues to request fixes, improvements or new features.
 
 |P1 to P2 GOOSE
 2+|1050-1099
-<.^|e.g. ARecl
+<.^|e.g. ARecl, ESW indication on GHA LV Incomers
 
 |GOOSE
 |1000-1049
@@ -104,14 +104,16 @@ Feel free to log issues to request fixes, improvements or new features.
 
 ** On the control block name, e.g. control blocks beginning with the following have the indicated allocations:
 *** GOOSE `Ind`, `Ctl` and `Test` is within the bus
-*** GOOSE `Intlk` is within the station
+*** GOOSE `ILock` is within the station
 *** GOOSE `ARecl` is within the station
 *** GOOSE `EveTrig` is within the station
 *** GOOSE `SPSBus` is within the bus
 *** GOOSE `SPSStn` is within the station
+*** GOOSE `SwgrPos` is within the bus between Prot 1 and Prot 2
+*** GOOSE `CBFailInit` is OC(CBFail) to the other bus in a bus or breaker and a half protection scheme and is within the station
 
 ** On the `smvID` parameter in the control block (as e.g. IEC 61869-9 governs the `SampledValueControl` control block name and the `DataSet` name). This has to be unique substation wide, so the suffix of this value is used to classify the traffic:
-*** `Bay` or `Bus` -- Belongs to the bus
+*** No identified suffix -- Belongs to the bus
 *** `VTSel` -- Belongs to the station
 
 * Buses are determine by a Function named `CommAddressing` under a Bay in the `Substation` section with a `name` which begins `Bus` followed by an underscore and the bus name.

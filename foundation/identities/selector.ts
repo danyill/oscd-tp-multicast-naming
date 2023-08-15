@@ -526,11 +526,22 @@ export function controlBlockSelector(
   tagName: SCLTag,
   identity: string
 ): string {
-  const [ldInst, cbName] = identity.split(' ');
+  const [parentIdentity, cbIdentity] = identity.split('>');
+  const [ldInst, cbName] = cbIdentity.split(' ');
 
   if (!ldInst || !cbName) return voidSelector;
 
-  return `${tagName}[ldInst="${ldInst}"][cbName="${cbName}"]`;
+  const parents = relatives[tagName].parents.map(parent =>
+    selector(parent, parentIdentity)
+  );
+
+  return crossProduct(
+    parents,
+    ['>'],
+    [`${tagName}[ldInst="${ldInst}"][cbName="${cbName}"]`]
+  )
+    .map(strings => strings.join(''))
+    .join(',');
 }
 
 export function physConnSelector(tagName: SCLTag, identity: string): string {

@@ -182,7 +182,7 @@ export function controlBlockIdentity(e: Element): string {
   const [ldInst, cbName] = ['ldInst', 'cbName'].map(name =>
     e.getAttribute(name)
   );
-  return `${ldInst} ${cbName}`;
+  return `${identity(e.parentElement)}>${ldInst} ${cbName}`;
 }
 
 export function physConnIdentity(e: Element): string | number {
