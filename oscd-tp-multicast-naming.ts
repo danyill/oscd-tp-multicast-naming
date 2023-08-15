@@ -206,29 +206,32 @@ export default class TPMulticastNaming extends LitElement {
   @property({ attribute: false })
   editCount!: number;
 
-  @query('#grid')
-  grid!: Grid;
-
-  @property()
+  @property({ attribute: false })
   gridItems: Array<unknown> = [];
 
-  @property()
+  @property({ attribute: false })
   selectedItems: Array<unknown> = [];
 
-  @property()
+  @property({ attribute: false })
   publisherGOOSE = true;
 
-  @property()
+  @property({ attribute: false })
   publisherSMV = true;
 
-  @property()
+  @property({ attribute: false })
   protection1 = true;
 
-  @property()
+  @property({ attribute: false })
   protection2 = true;
 
-  @property()
+  @property({ attribute: false })
+  showMissingAddresses = true;
+
+  @property({ attribute: false })
   selectedBus: string = '';
+
+  @query('#grid')
+  grid!: Grid;
 
   // TODO: Refactor for performance.
   @property({ type: Map })
@@ -305,6 +308,16 @@ export default class TPMulticastNaming extends LitElement {
           }}
         ></mwc-checkbox
       ></mwc-formfield>
+      <mwc-formfield label="Show Missing Addresses" alignEnd
+        ><mwc-checkbox
+          ?checked=${this.showMissingAddresses}
+          @change=${() => {
+            this.showMissingAddresses = !this.showMissingAddresses;
+            this.gridItems = [];
+            this.updateContent();
+          }}
+        ></mwc-checkbox
+      ></mwc-formfield>
       <mwc-formfield
         id="busConnectionMenuButton"
         label="${this.selectedBus === '' ? 'Select a Bus' : this.selectedBus}"
@@ -346,13 +359,15 @@ export default class TPMulticastNaming extends LitElement {
       .filter(control => {
         const iedName =
           control.closest('IED')?.getAttribute('name') ?? 'Unknown IED';
+        const address = getCommAddress(control);
 
         return (
           ((control.tagName === 'GSEControl' && this.publisherGOOSE) ||
             (control.tagName === 'SampledValueControl' && this.publisherSMV)) &&
           protections.includes(getProtectionNumber(iedName)) &&
           (this.selectedBus === this.busConnections.get(iedName) ||
-            this.selectedBus === '')
+            this.selectedBus === '') &&
+          (!this.showMissingAddresses || (this.showMissingAddresses && address))
         );
       })
       .sort((a: Element, b: Element) => {
@@ -535,7 +550,7 @@ export default class TPMulticastNaming extends LitElement {
         <vaadin-grid-filter-column
           path="type"
           header="Type"
-          width="40px"
+          width="30px"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
           id="busRef"
@@ -562,7 +577,7 @@ export default class TPMulticastNaming extends LitElement {
           )}
           id="mac"
           path="mac"
-          header="mac"
+          header="MAC Address"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
           id="appId"
@@ -573,25 +588,25 @@ export default class TPMulticastNaming extends LitElement {
         <vaadin-grid-filter-column
           id="vlanId"
           path="vlanId"
-          header="vlanId"
+          header="VLAN Id"
           width="40px"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
           id="vlanPriority"
           path="vlanPriority"
-          header="vlanPriority"
+          header="VLAN Priority"
           width="40px"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
           id="minTime"
           path="minTime"
-          header="minTime"
+          header="Min Time"
           width="40px"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
           id="maxTime"
           path="maxTime"
-          header="maxTime"
+          header="Max Time"
           width="40px"
         ></vaadin-grid-filter-column>
       </vaadin-grid>
@@ -677,7 +692,7 @@ export default class TPMulticastNaming extends LitElement {
       }
 
       if (type === 'SampledValueControl') {
-        const smvID = control.getAttribute('name') ?? 'Unknown';
+        const smvID = control.getAttribute('smvID') ?? 'Unknown';
         const update = {
           element: control,
           attributes: {
