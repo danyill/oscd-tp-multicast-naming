@@ -373,6 +373,7 @@ function displayVlan(vlanId: string): TemplateResult {
     )}</code>)`;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function writeVlan(doc: XMLDocument, vlan: Vlan) {
   // TODO: Handle lack of Communication container
   const communicationContainer = doc.querySelector('Communication');
@@ -426,6 +427,23 @@ function writeVlan(doc: XMLDocument, vlan: Vlan) {
 //         </etpc:Bus>
 //     </Private>
 
+function getBusConnections(doc: XMLDocument) {
+  if (!doc) return new Map();
+  const bcs = new Map<string, string>();
+  Array.from(
+    doc.querySelectorAll(
+      'Substation > VoltageLevel > Bay > Function[name="BusPhysConnection"]'
+    )
+  ).forEach(physConn => {
+    const bayName = physConn.closest('Bay')?.getAttribute('name')!;
+    physConn.querySelectorAll('LNode').forEach(lNode => {
+      const iedName = lNode.getAttribute('iedName')!;
+      bcs.set(iedName, bayName);
+    });
+  });
+  return bcs;
+}
+
 export default class TPMulticastNaming extends LitElement {
   /** The document being edited as provided to plugins by [[`OpenSCD`]]. */
   @property({ attribute: false })
@@ -470,20 +488,7 @@ export default class TPMulticastNaming extends LitElement {
   // TODO: Refactor for performance.
   @property({ type: Map })
   get busConnections(): Map<string, string> {
-    if (!this.doc) return new Map();
-    const bcs = new Map<string, string>();
-    Array.from(
-      this.doc.querySelectorAll(
-        'Substation > VoltageLevel > Bay > Function[name="BusPhysConnection"]'
-      )
-    ).forEach(physConn => {
-      const bayName = physConn.closest('Bay')?.getAttribute('name')!;
-      physConn.querySelectorAll('LNode').forEach(lNode => {
-        const iedName = lNode.getAttribute('iedName')!;
-        bcs.set(iedName, bayName);
-      });
-    });
-    return bcs;
+    return getBusConnections(this.doc);
   }
 
   @property({ type: Array })
@@ -845,6 +850,7 @@ export default class TPMulticastNaming extends LitElement {
           ?.textContent?.toUpperCase() ?? ''
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const nextVlan: VlanAllocation = {
       Station: {
         InterProt: vlanIdRangeGenerator(
@@ -933,6 +939,44 @@ export default class TPMulticastNaming extends LitElement {
     // </Private>
 
     console.log('now we do something new');
+
+    const busConnections = getBusConnections(this.doc);
+
+    const busToIed = new Map<string, string[]>();
+
+    Array.from(busConnections.keys()).forEach(iedName => {
+      const busName = busConnections.get(iedName);
+      if (!busToIed.has(busName)) {
+        busToIed.set(busName, [iedName]);
+      } else {
+        busToIed.set(busName, [...busToIed.get(busName)!, iedName]);
+      }
+    });
+
+    console.log(busToIed);
+
+    Array.from(busToIed.keys()).forEach(busName => {
+      selectedControlElements
+        .filter(
+          ctrl =>
+            busConnections.get(ctrl.closest('IED')!.getAttribute('name')!) ===
+            busName
+        )
+        .forEach(ctrl => {
+          const iedName = ctrl.closest('IED')!.getAttribute('name');
+          const connectedBus = busConnections.get(iedName);
+          const addr = getCommAddress(ctrl);
+
+          ctrl.getAttribute('name');
+
+          console.log('hey', busName, iedName, connectedBus, addr, ctrl);
+        });
+    });
+
+    // selectedCommElements.forEach(commElement => {
+
+    //   console.log('hi');
+    // });
 
     selectedCommElements.forEach(element => {
       const protNum = getProtectionNumber(
