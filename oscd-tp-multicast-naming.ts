@@ -4,10 +4,13 @@ import { property, query } from 'lit/decorators.js';
 
 import '@material/mwc-button';
 import '@material/mwc-checkbox';
+import '@material/mwc-dialog';
 import '@material/mwc-formfield';
 import '@material/mwc-icon-button';
 import '@material/mwc-list/mwc-list-item';
 import '@material/mwc-menu';
+
+import '@openscd/oscd-filtered-list';
 
 import '@vaadin/grid';
 import '@vaadin/checkbox';
@@ -17,16 +20,20 @@ import '@vaadin/grid/theme/material/vaadin-grid-filter-column.js';
 import '@vaadin/grid/theme/material/vaadin-grid-selection-column.js';
 
 import { columnBodyRenderer } from '@vaadin/grid/lit.js';
+import { registerStyles } from '@vaadin/vaadin-themable-mixin/register-styles.js';
 
 import type { Button } from '@material/mwc-button';
+import type { Dialog } from '@material/mwc-dialog';
 import type { List } from '@material/mwc-list';
+import type { ListItemBase } from '@material/mwc-list/mwc-list-item-base.js';
 import type { Menu } from '@material/mwc-menu';
 import type { Grid, GridSelectedItemsChangedEvent } from '@vaadin/grid';
 
 import { Edit, newEditEvent } from '@openscd/open-scd-core';
-import { ListItemBase } from '@material/mwc-list/mwc-list-item-base.js';
+
 import { identity } from './foundation/identities/identity.js';
 import { selector } from './foundation/identities/selector.js';
+
 // import { gooseIcon, smvIcon } from './foundation/icons/icons.js';
 // import { compareNames } from './src/foundation/foundation.js';
 
@@ -224,6 +231,12 @@ function stripExtensionFromName(docName: string): string {
   return name;
 }
 
+function displayVlan(vlanId: string): TemplateResult {
+  return html`<code>0x${vlanId}</code> (<code>${parseInt(vlanId, 16).toString(
+      10
+    )}</code>)`;
+}
+
 type AddressItem = {
   iedName: string;
   iedType: string;
@@ -239,6 +252,13 @@ type AddressItem = {
   maxTime: string;
   controlIdentity: string;
   addressIdentity: string;
+};
+
+type Vlan = {
+  serviceName: string;
+  prot1Id: string;
+  prot2Id: string;
+  busName?: string;
 };
 
 export default class TPMulticastNaming extends LitElement {
@@ -277,7 +297,10 @@ export default class TPMulticastNaming extends LitElement {
   selectedBus: string = '';
 
   @query('#grid')
-  grid!: Grid;
+  gridUI!: Grid;
+
+  @query('#vlanList')
+  vlanListUI!: Dialog;
 
   // TODO: Refactor for performance.
   @property({ type: Map })
@@ -471,23 +494,24 @@ export default class TPMulticastNaming extends LitElement {
   }
 
   async firstUpdated(): Promise<void> {
-    this.busConnectionMenuUI!.anchor = <HTMLElement>(
-      this.busConnectionMenuButtonUI
-    );
+    if (this.busConnectionMenuUI) {
+      this.busConnectionMenuUI!.anchor = <HTMLElement>(
+        this.busConnectionMenuButtonUI
+      );
 
-    this.busConnectionMenuUI!.addEventListener('closed', () => {
-      const busListItem =
-        (<ListItemBase>this.busConnectionMenuUI?.selected).value ?? '';
-      if (this.selectedBus === busListItem) {
-        this.selectedBus = '';
-      } else {
-        this.selectedBus = busListItem;
-      }
+      this.busConnectionMenuUI!.addEventListener('closed', () => {
+        const busListItem =
+          (<ListItemBase>this.busConnectionMenuUI?.selected)?.value ?? '';
+        if (this.selectedBus === busListItem) {
+          this.selectedBus = '';
+        } else {
+          this.selectedBus = busListItem;
+        }
 
-      this.gridItems = [];
-      this.updateContent();
-    });
-
+        this.gridItems = [];
+        this.updateContent();
+      });
+    }
     // if (!this.doc) return;
     // ${Array.from(
     //   noSelectedComms
@@ -621,8 +645,8 @@ export default class TPMulticastNaming extends LitElement {
         <vaadin-grid-filter-column
           ${columnBodyRenderer<any>(
             ({ mac }) =>
-              html`<span class="lighter">${(<string>mac).slice(0, 12)}</span
-                ><span>${mac.slice(12)}</span>`,
+              html`<span class="lighter">${(<string>mac).slice(0, 9)}</span
+                ><span>${mac.slice(9)}</span>`,
             []
           )}
           id="mac"
@@ -915,72 +939,83 @@ export default class TPMulticastNaming extends LitElement {
 
   renderButtons(): TemplateResult {
     const sizeSelectedItems = this.selectedItems.length;
-    return html`<mwc-button
-        outlined
-        icon="drive_file_rename_outline"
-        class="rename-button"
-        label="Address GOOSE and SMV (${sizeSelectedItems || '0'})"
-        ?disabled=${sizeSelectedItems === 0}
-        @click=${() => {
-          if (!this.doc) return;
+    return html`
+      <div id="bottomMenu">
+        <div>
+          <mwc-button
+            outlined
+            icon="lan"
+            class="spaced-button"
+            label="Show Used VLANs (${sizeSelectedItems || '0'})"
+            @click=${() => {
+              this.vlanListUI.show();
+            }}
+          >
+          </mwc-button>
+          <mwc-button
+            outlined
+            icon="sync_alt"
+            class="spaced-button"
+            label="Enrich Communications Subscriptions"
+            ?disabled=${sizeSelectedItems === 0}
+            @click=${() => {
+              console.log('also hi');
+            }}
+          >
+          </mwc-button>
+        </div>
+        <mwc-button
+          outlined
+          icon="drive_file_rename_outline"
+          class="button"
+          label="Address GOOSE and SMV (${sizeSelectedItems || '0'})"
+          ?disabled=${sizeSelectedItems === 0}
+          @click=${() => {
+            if (!this.doc) return;
 
-          const selectedCommElements = (<any>this.selectedItems)
-            .map((item: { type: string; addressIdentity: string | number }) => {
-              const gSEorSMV = this.doc.querySelector(
-                selector(item.type, item.addressIdentity)
-              )!;
-              return gSEorSMV;
-            })
-            .filter((e: Element | null) => e !== null);
+            const selectedCommElements = (<any>this.selectedItems)
+              .map(
+                (item: { type: string; addressIdentity: string | number }) => {
+                  const gSEorSMV = this.doc.querySelector(
+                    selector(item.type, item.addressIdentity)
+                  )!;
+                  return gSEorSMV;
+                }
+              )
+              .filter((e: Element | null) => e !== null);
 
-          const selectedControlElements = (<any>this.selectedItems)
-            .map((item: { type: string; controlIdentity: string | number }) => {
-              const control = this.doc.querySelector(
-                selector(
-                  item.type === 'GSE' ? 'GSEControl' : 'SampledValueControl',
-                  item.controlIdentity
-                )
-              )!;
-              return control;
-            })
-            .filter((e: Element | null) => e !== null);
+            const selectedControlElements = (<any>this.selectedItems)
+              .map(
+                (item: { type: string; controlIdentity: string | number }) => {
+                  const control = this.doc.querySelector(
+                    selector(
+                      item.type === 'GSE'
+                        ? 'GSEControl'
+                        : 'SampledValueControl',
+                      item.controlIdentity
+                    )
+                  )!;
+                  return control;
+                }
+              )
+              .filter((e: Element | null) => e !== null);
 
-          this.updateCommElements(
-            selectedCommElements,
-            selectedControlElements
-          );
+            this.updateCommElements(
+              selectedCommElements,
+              selectedControlElements
+            );
 
-          this.gridItems = [];
-          this.grid.selectedItems = [];
-          this.selectedItems = [];
+            this.gridItems = [];
+            this.gridUI.selectedItems = [];
+            this.selectedItems = [];
 
-          this.updateContent();
-          this.grid.clearCache();
-        }}
-      >
-      </mwc-button>
-      <mwc-button
-        outlined
-        icon="lan"
-        class="rename-button"
-        label="Show Used VLANs (${sizeSelectedItems || '0'})"
-        ?disabled=${sizeSelectedItems === 0}
-        @click=${() => {
-          console.log('hi');
-        }}
-      >
-      </mwc-button>
-      <mwc-button
-        outlined
-        icon="sync_alt"
-        class="rename-button"
-        label="Enrich Communications Subscriptions"
-        ?disabled=${sizeSelectedItems === 0}
-        @click=${() => {
-          console.log('also hi');
-        }}
-      >
-      </mwc-button> `;
+            this.updateContent();
+            this.gridUI.clearCache();
+          }}
+        >
+        </mwc-button>
+      </div>
+    `;
   }
 
   renderDownloadButton(): TemplateResult {
@@ -995,26 +1030,112 @@ export default class TPMulticastNaming extends LitElement {
     ></mwc-icon-button>`;
   }
 
+  // eslint-disable-next-line class-methods-use-this
+  renderVlan(vlan: Vlan, type: string): TemplateResult {
+    return html`<mwc-list-item twoline value="${type}"
+      >${vlan.serviceName}${vlan.busName && vlan.busName !== ''
+        ? ` (${vlan.busName})`
+        : ''}<span slot="secondary"
+        >Prot1: ${displayVlan(vlan.prot1Id)} Prot2:
+        ${displayVlan(vlan.prot2Id)}</span
+      ></mwc-list-item
+    >`;
+  }
+
+  renderVlanList(): TemplateResult {
+    const vlanContainer = this.doc.querySelector(
+      'Private[type="Transpower-VLAN-Allocation"]'
+    );
+    const stationVlanContainer = vlanContainer?.getElementsByTagNameNS(
+      TPNS,
+      'Station'
+    );
+    const busVlanContainer = vlanContainer?.getElementsByTagNameNS(TPNS, 'Bus');
+
+    let stationVlans: Vlan[] | null = [];
+    let busVlans: Vlan[] | null = [];
+
+    // eslint-disable-next-line no-undef
+    const getVlans = (container: HTMLCollectionOf<Element> | undefined) => {
+      if (container) {
+        return Array.from(
+          container[0].getElementsByTagNameNS(TPNS, 'VLAN')
+        ).map(vlan => ({
+          serviceName: vlan.getAttribute('serviceName') ?? '',
+          prot1Id: vlan.getAttribute('prot1Id') ?? '',
+          prot2Id: vlan.getAttribute('prot2Id') ?? '',
+          busName: vlan.getAttribute('busName') ?? '',
+        }));
+      }
+      return null;
+    };
+
+    stationVlans = getVlans(stationVlanContainer);
+    busVlans = getVlans(busVlanContainer);
+
+    // Array.from(this.doc.querySelectorAll(`[xmlns|etpc="${TPNS}"]`)).map(
+    //   () =>
+    return html`<mwc-dialog id="vlanList" heading="VLAN List">
+      <oscd-filtered-list
+        ><h3>Station VLANs</h3>
+        ${stationVlans
+          ? stationVlans.map(vlan => this.renderVlan(vlan, 'station'))
+          : ''}
+        <h3>Bus VLANs</h3>
+        ${busVlans ? busVlans.map(vlan => this.renderVlan(vlan, 'bus')) : ''}
+      </oscd-filtered-list>
+    </mwc-dialog>`;
+  }
+
   render(): TemplateResult {
-    return html`<section>
-      <div id="topMenu">
-        ${this.renderFilterButtons()} ${this.renderDownloadButton()}
-      </div>
-      ${this.renderSelectionList()} ${this.renderButtons()}
-    </section> `;
+    if (!this.doc)
+      return html`<h2 class="emptyDocument">No document loaded</h2>`;
+    return html`
+      <section>
+        <h2>Multicast GOOSE and SMV Messages</h2>
+        <div id="topMenu">
+          ${this.renderFilterButtons()} ${this.renderDownloadButton()}
+        </div>
+        ${this.renderSelectionList()} ${this.renderButtons()}
+      </section>
+      ${this.renderVlanList()}
+    `;
   }
 
   static styles = css`
+    .spaced-button {
+      margin-right: 15px;
+    }
+
+    .emptyDocument {
+      margin: 15px;
+    }
+
     #grid {
       width: auto;
-      margin: 1rem;
-      margin-right: 2rem;
-      height: calc(100vh - 250px);
+      /* margin: 1rem;
+      margin-right: 2rem; */
+      height: calc(100vh - 300px);
     }
 
     /* ensures with material theme scrolling doesn't cut through header */
-    vaadin-grid::part(header-cell) {
+    #grid::part(header-cell) {
       background-color: white;
+    }
+
+    #grid {
+      margin-bottom: 15px;
+    }
+
+    h2 {
+      color: var(--mdc-theme-on-surface);
+      font-family: 'Roboto', sans-serif;
+      font-weight: 300;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      margin: 0px;
+      line-height: 48px;
     }
 
     .lighter {
@@ -1035,7 +1156,8 @@ export default class TPMulticastNaming extends LitElement {
       padding: 15px;
     }
 
-    #topMenu {
+    #topMenu,
+    #bottomMenu {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -1058,3 +1180,28 @@ export default class TPMulticastNaming extends LitElement {
     }
   `;
 }
+
+registerStyles(
+  'vaadin-grid',
+  css`
+    :host {
+      --scrollbarBG: var(--mdc-theme-background, #cfcfcf00);
+      --thumbBG: var(--mdc-button-disabled-ink-color, #996cd8cc);
+      scrollbar-width: auto;
+      scrollbar-color: var(--thumbBG) var(--scrollbarBG);
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--scrollbarBG);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--thumbBG);
+      border-radius: 6px;
+    }
+  `
+);

@@ -156,8 +156,24 @@ We will rely on diff functionality to show the differences (yet to be developed)
 
 === Storing VLAN Information
 
+VLAN information is stored within the `Communication` section as a `Private` element, in the following form:
 
+[source,xml]
+----
+<Private type="Transpower-VLAN-Allocation" etpc:lastUpdated="2023-08-16:23:59:00">
+      <etpc:Station>
+          <etpc:VLAN serviceName="Intlk" prot1Id="1000" prot2Id="2000"/>
+          <etpc:VLAN serviceName="VTSel" prot1Id="1001" prot2Id="2001"/>
+      </etpc:Station>
+      <etpc:Bus>
+          <etpc:VLAN serviceName="ARecl" prot1Id="50" prot2Id="50"/>
+          <etpc:VLAN serviceName="Ctl/Ind/Test" prot1Id="100" prot2Id="200"/>
+          <etpc:VLAN serviceName="Bus" prot1Id="150" prot2Id="250"/>
+      </etpc:Bus>
+  </Private>
+----
 
+VLANs will always be incremented in pairs (whether or not they are required by both protection systems, they will be allocated for both).
 
 == Using the Plugin
 
