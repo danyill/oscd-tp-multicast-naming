@@ -176,6 +176,45 @@ export function appIdGenerator(
   };
 }
 
+/**
+ * @param doc - project xml document
+ * @param serviceType - SampledValueControl (SMV) or GSEControl (GSE)
+ * @param type - whether the GOOSE is a Trip GOOSE resulting in different APPID range - default false
+ * @returns a function generating increasing unused `APPID` within `doc` on subsequent invocations
+ */
+// export function vlanIdRangeGenerator(
+//   doc: XMLDocument,
+//   serviceType: 'SMV' | 'GSE' | 'InterProt'
+// ): () => string {
+// const appIds = new Set(
+//   Array.from(
+//     doc.querySelectorAll(`${serviceType} > Address > P[type="APPID"]`)
+//   )
+//     .filter(appId => !ignoreAppIds.includes(appId.textContent ?? ''))
+//     .map(appId => appId.textContent!)
+// );
+// let range: string[] = [];
+// if (serviceType === 'GSE') {
+//   if (protectionType === '1') {
+//     range = appIdRange(GSEAPPID.P1.min, GSEAPPID.P1.max);
+//   } else if (protectionType === '2') {
+//     range = appIdRange(GSEAPPID.P2.min, GSEAPPID.P2.max);
+//   } else {
+//     range = appIdRange(GSEAPPID.N.min, GSEAPPID.N.max);
+//   }
+// } else if (serviceType === 'SMV') {
+//   range =
+//     protectionType === '1'
+//       ? appIdRange(SMVAPPID.P1.min, SMVAPPID.P1.max)
+//       : appIdRange(SMVAPPID.P2.min, SMVAPPID.P2.max);
+// }
+// return () => {
+//   const uniqueAppId = range.find(appId => !appIds.has(appId));
+//   if (uniqueAppId) appIds.add(uniqueAppId);
+//   return uniqueAppId ?? '';
+// };
+// }
+
 function isEven(num: number): boolean {
   return num % 2 === 0;
 }
@@ -512,64 +551,6 @@ export default class TPMulticastNaming extends LitElement {
         this.updateContent();
       });
     }
-    // if (!this.doc) return;
-    // ${Array.from(
-    //   noSelectedComms
-    //     ? this.doc.querySelectorAll('XYZZY')
-    //     : this.doc.querySelectorAll('ConnectedAP')
-    // )
-    //   .filter(ap => ap.querySelector(selectorString) !== null)
-    //   .filter(ap =>
-    //     selectProtections(ap.getAttribute('iedName')!, protectionSelection)
-    //   )
-    //   .sort(compareNames)
-    //   .flatMap(ap => {
-    //     const apItem = {
-    //       name: ap.getAttribute('iedName'),
-    //       apName: ap.getAttribute('apName'),
-    //     };
-    //     const currentComElements = Array.from(
-    //       ap.querySelectorAll(selectorString)
-    //     );
-    //     this.commElements = [...this.commElements, ...currentComElements];
-    // const commUiElements = currentComElements.map(
-    //   comm =>
-    //     html`<mwc-check-list-item
-    //       hasMeta
-    //       twoline
-    //       value="${comm.getAttribute(
-    //         'cbName'
-    //       )} ${comm.parentElement!.getAttribute(
-    //         'iedName'
-    //       )} ${comm.parentElement!.getAttribute('apName')} "
-    //       graphic="icon"
-    //     >
-    //       <span>${comm.getAttribute('cbName')}</span
-    //       ><span slot="secondary"
-    //         >${(<string>identity(comm))
-    //           .split(' ')
-    //           .slice(0, -1)
-    //           .join('')}</span
-    //       >
-    //       <mwc-icon slot="graphic"
-    //         >${comm.tagName === 'GSE' ? gooseIcon : smvIcon}</mwc-icon
-    //       >
-    //       <mwc-icon-button slot="meta" icon="edit"></mwc-icon-button>
-    //     </mwc-check-list-item>`
-    // );
-    // return [apItem, ...commUiElements];
-    // })}
-    //   const noSelectedComms =
-    //   this.publisherGOOSE === false && this.publisherSMV === false;
-    // const selectorString = selectControlBlockTypes(
-    //   this.publisherGOOSE,
-    //   this.publisherSMV
-    // );
-    // const protectionSelection = `${this.protection1 ? '1' : ''}${
-    //   this.protection2 ? '2' : ''
-    // }`;
-    // this.commElements = [];
-    // this.updateContent();
   }
 
   protected updated(
@@ -729,6 +710,27 @@ export default class TPMulticastNaming extends LitElement {
         '2': appIdGenerator(this.doc, 'SMV', '2', ignoreAppIds),
       },
     };
+
+    // VLANs
+
+    // const nextSubstationVLAN: AppObject = {
+    //   'GSE': vlanIdRangeGenerator(this.doc, 'GSE')
+    //   'SV': vlanIdRangeGenerator(this.doc, 'SV')
+    //   'InterProt': vlanIdRangeGenerator(this.doc, 'InterProt')
+    //   }
+    // }
+
+    //     <Private type="Transpower-VLAN-Allocation" etpc:lastUpdated="2023-08-16:23:59:00">
+    //     <etpc:Station>
+    //         <etpc:VLAN serviceName="Intlk" prot1Id="1000" prot2Id="2000"/>
+    //         <etpc:VLAN serviceName="VTSel" prot1Id="1000" prot2Id="2000"/>
+    //     </etpc:Station>
+    //     <etpc:Bus>
+    //         <etpc:VLAN serviceName="ARecl" prot1Id="50" prot2Id="50" busName="Bus_A"/>
+    //         <etpc:VLAN serviceName="Ctl/Ind/Test" prot1Id="100" prot2Id="200" busName="Bus_A"/>
+    //         <etpc:VLAN serviceName="Bus" prot1Id="150" prot2Id="250" busName="Bus_B"/>
+    //     </etpc:Bus>
+    // </Private>
 
     let edits: Edit[] = [];
 
@@ -920,6 +922,7 @@ export default class TPMulticastNaming extends LitElement {
 
     // Push the data back to the user.
     const a = document.createElement('a');
+    // TODO: Why is this.docName not working?
     // a.download = `${stripExtensionFromName(
     //   this.docName
     // )}-comms-addresses.csv`;
@@ -946,23 +949,13 @@ export default class TPMulticastNaming extends LitElement {
             outlined
             icon="lan"
             class="spaced-button"
-            label="Show Used VLANs (${sizeSelectedItems || '0'})"
+            label="Show Used VLANs"
             @click=${() => {
               this.vlanListUI.show();
             }}
           >
           </mwc-button>
-          <mwc-button
-            outlined
-            icon="sync_alt"
-            class="spaced-button"
-            label="Enrich Communications Subscriptions"
-            ?disabled=${sizeSelectedItems === 0}
-            @click=${() => {
-              console.log('also hi');
-            }}
-          >
-          </mwc-button>
+          <!-- TODO: Feature to add network-data extension in here -->
         </div>
         <mwc-button
           outlined
@@ -1042,7 +1035,10 @@ export default class TPMulticastNaming extends LitElement {
     >`;
   }
 
-  renderVlanList(): TemplateResult {
+  getAllocatedVlans(): {
+    stationVlans: Vlan[] | null;
+    busVlans: Vlan[] | null;
+  } {
     const vlanContainer = this.doc.querySelector(
       'Private[type="Transpower-VLAN-Allocation"]'
     );
@@ -1073,16 +1069,22 @@ export default class TPMulticastNaming extends LitElement {
     stationVlans = getVlans(stationVlanContainer);
     busVlans = getVlans(busVlanContainer);
 
-    // Array.from(this.doc.querySelectorAll(`[xmlns|etpc="${TPNS}"]`)).map(
-    //   () =>
+    return { stationVlans, busVlans };
+  }
+
+  renderVlanList(): TemplateResult {
+    const { stationVlans, busVlans } = this.getAllocatedVlans();
+
     return html`<mwc-dialog id="vlanList" heading="VLAN List">
       <oscd-filtered-list
         ><h3>Station VLANs</h3>
         ${stationVlans
           ? stationVlans.map(vlan => this.renderVlan(vlan, 'station'))
-          : ''}
+          : html`<mwc-list-item>No VLANs present</mwc-list-item>`}
         <h3>Bus VLANs</h3>
-        ${busVlans ? busVlans.map(vlan => this.renderVlan(vlan, 'bus')) : ''}
+        ${busVlans
+          ? busVlans.map(vlan => this.renderVlan(vlan, 'bus'))
+          : html`<mwc-list-item>No VLANs present</mwc-list-item>`}
       </oscd-filtered-list>
     </mwc-dialog>`;
   }
