@@ -49,6 +49,43 @@ type AppObject = {
   };
 };
 
+type VlanAllocation = {
+  [key: string]: {
+    [key: string]: () => string[];
+  };
+};
+
+type AddressItem = {
+  iedName: string;
+  iedType: string;
+  busRef: string;
+  type: string;
+  cbName: string;
+  appOrSmvId: string;
+  mac: string;
+  appId: string;
+  vlanPriority: string;
+  vlanId: string;
+  minTime: string;
+  maxTime: string;
+  controlIdentity: string;
+  addressIdentity: string;
+};
+
+type Vlan = {
+  serviceName: string;
+  serviceType: string;
+  useCase: string;
+  prot1Id: string;
+  prot2Id: string;
+  busName?: string;
+};
+
+type AllocatedVlans = {
+  stationVlans: Vlan[] | null;
+  busVlans: Vlan[] | null;
+};
+
 const GSEMAC = {
   P1: { min: 0x010ccd010000, max: 0x010ccd0100ff },
   P2: { min: 0x010ccd010100, max: 0x010ccd0101ff },
@@ -93,6 +130,12 @@ function appIdRange(min: number, max: number): string[] {
   return Array(max - min)
     .fill(1)
     .map((_, i) => (min + i).toString(16).toUpperCase().padStart(4, '0'));
+}
+
+function vlanRange(min: number, max: number): number[] {
+  return Array(max - min)
+    .fill(1)
+    .map((_, i) => min + i);
 }
 
 /**
@@ -176,44 +219,98 @@ export function appIdGenerator(
   };
 }
 
+function getAllocatedVlans(doc: XMLDocument): AllocatedVlans {
+  const vlanContainer = doc.querySelector(
+    'Private[type="Transpower-VLAN-Allocation"]'
+  );
+  const stationVlanContainer = vlanContainer?.getElementsByTagNameNS(
+    TPNS,
+    'Station'
+  );
+  const busVlanContainer = vlanContainer?.getElementsByTagNameNS(TPNS, 'Bus');
+
+  let stationVlans: Vlan[] | null = [];
+  let busVlans: Vlan[] | null = [];
+
+  // eslint-disable-next-line no-undef
+  const getVlans = (container: HTMLCollectionOf<Element> | undefined) => {
+    if (container) {
+      return Array.from(container[0].getElementsByTagNameNS(TPNS, 'VLAN')).map(
+        vlan => ({
+          serviceName: vlan.getAttribute('serviceName') ?? '',
+          serviceType: vlan.getAttribute('serviceName') ?? '',
+          useCase: vlan.getAttribute('useCase') ?? '',
+          prot1Id: vlan.getAttribute('prot1Id') ?? '',
+          prot2Id: vlan.getAttribute('prot2Id') ?? '',
+          busName: vlan.getAttribute('busName') ?? '',
+        })
+      );
+    }
+    return null;
+  };
+
+  stationVlans = getVlans(stationVlanContainer);
+  busVlans = getVlans(busVlanContainer);
+
+  return { stationVlans, busVlans };
+}
+
+const vlanRanges = {
+  Station: {
+    InterProt: { min: 1050, max: 1099, offsetToP2: 0 },
+    GSE: { min: 1000, max: 1049, offsetToP2: 1000 },
+    SMV: { min: 1050, max: 1099, offsetToP2: 1000 },
+  },
+  Bus: {
+    InterProt: { min: 50, max: 99, offsetToP2: 0 },
+    GSE: { min: 100, max: 149, offsetToP2: 100 },
+    SMV: { min: 150, max: 199, offsetToP2: 100 },
+  },
+};
+
 /**
  * @param doc - project xml document
  * @param serviceType - SampledValueControl (SMV) or GSEControl (GSE)
  * @param type - whether the GOOSE is a Trip GOOSE resulting in different APPID range - default false
  * @returns a function generating increasing unused `APPID` within `doc` on subsequent invocations
  */
-// export function vlanIdRangeGenerator(
-//   doc: XMLDocument,
-//   serviceType: 'SMV' | 'GSE' | 'InterProt'
-// ): () => string {
-// const appIds = new Set(
-//   Array.from(
-//     doc.querySelectorAll(`${serviceType} > Address > P[type="APPID"]`)
-//   )
-//     .filter(appId => !ignoreAppIds.includes(appId.textContent ?? ''))
-//     .map(appId => appId.textContent!)
-// );
-// let range: string[] = [];
-// if (serviceType === 'GSE') {
-//   if (protectionType === '1') {
-//     range = appIdRange(GSEAPPID.P1.min, GSEAPPID.P1.max);
-//   } else if (protectionType === '2') {
-//     range = appIdRange(GSEAPPID.P2.min, GSEAPPID.P2.max);
-//   } else {
-//     range = appIdRange(GSEAPPID.N.min, GSEAPPID.N.max);
-//   }
-// } else if (serviceType === 'SMV') {
-//   range =
-//     protectionType === '1'
-//       ? appIdRange(SMVAPPID.P1.min, SMVAPPID.P1.max)
-//       : appIdRange(SMVAPPID.P2.min, SMVAPPID.P2.max);
-// }
-// return () => {
-//   const uniqueAppId = range.find(appId => !appIds.has(appId));
-//   if (uniqueAppId) appIds.add(uniqueAppId);
-//   return uniqueAppId ?? '';
-// };
-// }
+export function vlanIdRangeGenerator(
+  doc: XMLDocument,
+  serviceType: 'SMV' | 'GSE' | 'InterProt',
+  useCase: 'Station' | 'Bus',
+  ignoreValues: string[]
+): () => string[] {
+  const { stationVlans, busVlans } = getAllocatedVlans(doc);
+  const vlans = useCase === 'Station' ? stationVlans : busVlans;
+
+  const ignoreNumbers = ignoreValues.map(vlan => parseInt(vlan, 16));
+  const usedVlanNumbers = new Set(
+    vlans
+      ? vlans
+          .map(vlan => parseInt(vlan.prot1Id, 16))
+          .filter(vlan => !ignoreNumbers.includes(vlan))
+      : []
+  );
+
+  const range = vlanRange(
+    vlanRanges[useCase][serviceType].min,
+    vlanRanges[useCase][serviceType].max
+  );
+
+  const p2Offset = vlanRanges[useCase][serviceType].offsetToP2;
+
+  return () => {
+    const uniqueVlan = range.find(vlan => !usedVlanNumbers.has(vlan));
+    if (uniqueVlan) {
+      usedVlanNumbers.add(uniqueVlan);
+      return [
+        uniqueVlan?.toString(16).toUpperCase(),
+        (uniqueVlan + p2Offset)?.toString(16).toUpperCase() ?? '',
+      ];
+    }
+    return ['', ''];
+  };
+}
 
 function isEven(num: number): boolean {
   return num % 2 === 0;
@@ -276,29 +373,58 @@ function displayVlan(vlanId: string): TemplateResult {
     )}</code>)`;
 }
 
-type AddressItem = {
-  iedName: string;
-  iedType: string;
-  busRef: string;
-  type: string;
-  cbName: string;
-  appOrSmvId: string;
-  mac: string;
-  appId: string;
-  vlanPriority: string;
-  vlanId: string;
-  minTime: string;
-  maxTime: string;
-  controlIdentity: string;
-  addressIdentity: string;
-};
+function writeVlan(doc: XMLDocument, vlan: Vlan) {
+  // TODO: Handle lack of Communication container
+  const communicationContainer = doc.querySelector('Communication');
 
-type Vlan = {
-  serviceName: string;
-  prot1Id: string;
-  prot2Id: string;
-  busName?: string;
-};
+  const vlanContainer = doc.querySelector(
+    'Private[type="Transpower-VLAN-Allocation"]'
+  );
+
+  if (!vlanContainer) {
+    const vlanAllocation = doc.createElement('Private');
+    vlanAllocation.setAttribute('type', 'Transpower-VLAN-Allocation');
+    vlanAllocation.appendChild(doc.createElementNS(TPNS, 'Station'));
+    vlanAllocation.appendChild(doc.createElementNS(TPNS, 'Bus'));
+    const edit = {
+      node: vlanAllocation,
+      parent: communicationContainer!,
+      reference: communicationContainer!.firstElementChild,
+    };
+    doc.dispatchEvent(newEditEvent(edit));
+  }
+
+  const vlanUseCaseContainer =
+    vlan.useCase === 'Station'
+      ? vlanContainer?.getElementsByTagNameNS(TPNS, 'Station')
+      : vlanContainer?.getElementsByTagNameNS(TPNS, 'Bus');
+
+  const newVlan = doc.createElementNS(TPNS, 'VLAN');
+  // TODO: Fix my types
+  (<any>Object.keys(vlan)).forEach((attrName: keyof Vlan) => {
+    const attrValue = vlan[attrName]!;
+    newVlan.setAttributeNS(TPNS, attrName, attrValue);
+  });
+
+  const edit = {
+    node: newVlan,
+    parent: vlanUseCaseContainer!,
+    reference: communicationContainer!.firstElementChild,
+  };
+  doc.dispatchEvent(newEditEvent(edit));
+}
+
+// <Private type="Transpower-VLAN-Allocation" etpc:lastUpdated="2023-08-16:23:59:00">
+//         <etpc:Station>
+//             <etpc:VLAN serviceType="InterProt" serviceName="Intlk" prot1Id="1000" prot2Id="2000"/>
+//             <etpc:VLAN serviceType="SV" serviceName="VTSel" prot1Id="1000" prot2Id="2000"/>
+//         </etpc:Station>
+//         <etpc:Bus>
+//             <etpc:VLAN serviceType="GSE" serviceName="ARecl" prot1Id="50" prot2Id="50" busName="Bus_A"/>
+//             <etpc:VLAN serviceType="GSE" serviceName="Ctl/Ind/Test" prot1Id="100" prot2Id="200" busName="Bus_A"/>
+//             <etpc:VLAN serviceType="SMV" serviceName="Bus" prot1Id="150" prot2Id="250" busName="Bus_B"/>
+//         </etpc:Bus>
+//     </Private>
 
 export default class TPMulticastNaming extends LitElement {
   /** The document being edited as provided to plugins by [[`OpenSCD`]]. */
@@ -712,25 +838,35 @@ export default class TPMulticastNaming extends LitElement {
     };
 
     // VLANs
+    const ignoreVlanIds = selectedCommElements.map(
+      elem =>
+        elem
+          ?.querySelector('Address > P[type="VLAN-ID"]')!
+          ?.textContent?.toUpperCase() ?? ''
+    );
 
-    // const nextSubstationVLAN: AppObject = {
-    //   'GSE': vlanIdRangeGenerator(this.doc, 'GSE')
-    //   'SV': vlanIdRangeGenerator(this.doc, 'SV')
-    //   'InterProt': vlanIdRangeGenerator(this.doc, 'InterProt')
-    //   }
-    // }
-
-    //     <Private type="Transpower-VLAN-Allocation" etpc:lastUpdated="2023-08-16:23:59:00">
-    //     <etpc:Station>
-    //         <etpc:VLAN serviceName="Intlk" prot1Id="1000" prot2Id="2000"/>
-    //         <etpc:VLAN serviceName="VTSel" prot1Id="1000" prot2Id="2000"/>
-    //     </etpc:Station>
-    //     <etpc:Bus>
-    //         <etpc:VLAN serviceName="ARecl" prot1Id="50" prot2Id="50" busName="Bus_A"/>
-    //         <etpc:VLAN serviceName="Ctl/Ind/Test" prot1Id="100" prot2Id="200" busName="Bus_A"/>
-    //         <etpc:VLAN serviceName="Bus" prot1Id="150" prot2Id="250" busName="Bus_B"/>
-    //     </etpc:Bus>
-    // </Private>
+    const nextVlan: VlanAllocation = {
+      Station: {
+        InterProt: vlanIdRangeGenerator(
+          this.doc,
+          'InterProt',
+          'Station',
+          ignoreVlanIds
+        ),
+        GSE: vlanIdRangeGenerator(this.doc, 'GSE', 'Station', ignoreVlanIds),
+        SMV: vlanIdRangeGenerator(this.doc, 'SMV', 'Station', ignoreVlanIds),
+      },
+      Bus: {
+        InterProt: vlanIdRangeGenerator(
+          this.doc,
+          'InterProt',
+          'Bus',
+          ignoreVlanIds
+        ),
+        GSE: vlanIdRangeGenerator(this.doc, 'GSE', 'Bus', ignoreVlanIds),
+        SMV: vlanIdRangeGenerator(this.doc, 'SMV', 'Bus', ignoreVlanIds),
+      },
+    };
 
     let edits: Edit[] = [];
 
@@ -782,6 +918,21 @@ export default class TPMulticastNaming extends LitElement {
       this.dispatchEvent(newEditEvent(edits));
       edits = [];
     }
+
+    // now we do something new
+    //     <Private type="Transpower-VLAN-Allocation" etpc:lastUpdated="2023-08-16:23:59:00">
+    //     <etpc:Station>
+    //         <etpc:VLAN serviceName="Intlk" prot1Id="1000" prot2Id="2000"/>
+    //         <etpc:VLAN serviceName="VTSel" prot1Id="1000" prot2Id="2000"/>
+    //     </etpc:Station>
+    //     <etpc:Bus>
+    //         <etpc:VLAN serviceName="ARecl" prot1Id="50" prot2Id="50" busName="Bus_A"/>
+    //         <etpc:VLAN serviceName="Ctl/Ind/Test" prot1Id="100" prot2Id="200" busName="Bus_A"/>
+    //         <etpc:VLAN serviceName="Bus" prot1Id="150" prot2Id="250" busName="Bus_B"/>
+    //     </etpc:Bus>
+    // </Private>
+
+    console.log('now we do something new');
 
     selectedCommElements.forEach(element => {
       const protNum = getProtectionNumber(
@@ -1026,7 +1177,8 @@ export default class TPMulticastNaming extends LitElement {
   // eslint-disable-next-line class-methods-use-this
   renderVlan(vlan: Vlan, type: string): TemplateResult {
     return html`<mwc-list-item twoline value="${type}"
-      >${vlan.serviceName}${vlan.busName && vlan.busName !== ''
+      >${vlan.serviceName} -
+      ${vlan.serviceType}${vlan.busName && vlan.busName !== ''
         ? ` (${vlan.busName})`
         : ''}<span slot="secondary"
         >Prot1: ${displayVlan(vlan.prot1Id)} Prot2:
@@ -1035,45 +1187,8 @@ export default class TPMulticastNaming extends LitElement {
     >`;
   }
 
-  getAllocatedVlans(): {
-    stationVlans: Vlan[] | null;
-    busVlans: Vlan[] | null;
-  } {
-    const vlanContainer = this.doc.querySelector(
-      'Private[type="Transpower-VLAN-Allocation"]'
-    );
-    const stationVlanContainer = vlanContainer?.getElementsByTagNameNS(
-      TPNS,
-      'Station'
-    );
-    const busVlanContainer = vlanContainer?.getElementsByTagNameNS(TPNS, 'Bus');
-
-    let stationVlans: Vlan[] | null = [];
-    let busVlans: Vlan[] | null = [];
-
-    // eslint-disable-next-line no-undef
-    const getVlans = (container: HTMLCollectionOf<Element> | undefined) => {
-      if (container) {
-        return Array.from(
-          container[0].getElementsByTagNameNS(TPNS, 'VLAN')
-        ).map(vlan => ({
-          serviceName: vlan.getAttribute('serviceName') ?? '',
-          prot1Id: vlan.getAttribute('prot1Id') ?? '',
-          prot2Id: vlan.getAttribute('prot2Id') ?? '',
-          busName: vlan.getAttribute('busName') ?? '',
-        }));
-      }
-      return null;
-    };
-
-    stationVlans = getVlans(stationVlanContainer);
-    busVlans = getVlans(busVlanContainer);
-
-    return { stationVlans, busVlans };
-  }
-
   renderVlanList(): TemplateResult {
-    const { stationVlans, busVlans } = this.getAllocatedVlans();
+    const { stationVlans, busVlans } = getAllocatedVlans(this.doc);
 
     return html`<mwc-dialog id="vlanList" heading="VLAN List">
       <oscd-filtered-list

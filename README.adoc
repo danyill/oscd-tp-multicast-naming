@@ -173,7 +173,10 @@ VLAN information is stored within the `Communication` section as a `Private` ele
   </Private>
 ----
 
-VLANs will always be incremented in pairs (whether or not they are required by both protection systems, they will be allocated for both).
+Further requirements from development:
+
+* VLANs will always be incremented in pairs (whether or not they are required by both protection systems, they will be allocated for both).
+* VLANs will have a fixed increment between Prot1 and Prot2.
 
 == Using the Plugin
 
