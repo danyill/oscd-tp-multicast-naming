@@ -195,6 +195,52 @@ function getCommAddress(ctrlBlock: Element): Element {
   )!;
 }
 
+function updateTextContent(node: Element | null, newContent: string): Edit[] {
+  if (!node) return [];
+  const newElement = node.cloneNode(true);
+  newElement.textContent = newContent;
+  return [
+    { node },
+    {
+      parent: node.parentElement!,
+      node: newElement,
+      reference: null,
+    },
+  ];
+}
+
+const FILE_EXTENSION_LENGTH = 3;
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function stripExtensionFromName(docName: string): string {
+  let name = docName;
+  // Check if the name includes a file extension, if the case remove it.
+  if (
+    name.length > FILE_EXTENSION_LENGTH &&
+    name.lastIndexOf('.') === name.length - (FILE_EXTENSION_LENGTH + 1)
+  ) {
+    name = name.substring(0, name.lastIndexOf('.'));
+  }
+  return name;
+}
+
+type AddressItem = {
+  iedName: string;
+  iedType: string;
+  busRef: string;
+  type: string;
+  cbName: string;
+  appOrSmvId: string;
+  mac: string;
+  appId: string;
+  vlanPriority: string;
+  vlanId: string;
+  minTime: string;
+  maxTime: string;
+  controlIdentity: string;
+  addressIdentity: string;
+};
+
 export default class TPMulticastNaming extends LitElement {
   /** The document being edited as provided to plugins by [[`OpenSCD`]]. */
   @property({ attribute: false })
@@ -207,10 +253,10 @@ export default class TPMulticastNaming extends LitElement {
   editCount!: number;
 
   @property({ attribute: false })
-  gridItems: Array<unknown> = [];
+  gridItems: AddressItem[] = [];
 
   @property({ attribute: false })
-  selectedItems: Array<unknown> = [];
+  selectedItems: AddressItem[] = [];
 
   @property({ attribute: false })
   publisherGOOSE = true;
@@ -359,7 +405,7 @@ export default class TPMulticastNaming extends LitElement {
       .filter(control => {
         const iedName =
           control.closest('IED')?.getAttribute('name') ?? 'Unknown IED';
-        const address = getCommAddress(control);
+        const commAdd = getCommAddress(control);
 
         return (
           ((control.tagName === 'GSEControl' && this.publisherGOOSE) ||
@@ -367,7 +413,7 @@ export default class TPMulticastNaming extends LitElement {
           protections.includes(getProtectionNumber(iedName)) &&
           (this.selectedBus === this.busConnections.get(iedName) ||
             this.selectedBus === '') &&
-          (!this.showMissingAddresses || (this.showMissingAddresses && address))
+          (!this.showMissingAddresses || (this.showMissingAddresses && commAdd))
         );
       })
       .sort((a: Element, b: Element) => {
@@ -384,12 +430,16 @@ export default class TPMulticastNaming extends LitElement {
 
         const ied = control.closest('IED');
         const iedName = ied!.getAttribute('name')!;
-        const rowItem = {
+        const vlanId = address?.querySelector(
+          'Address > P[type="VLAN-ID"]'
+        )?.textContent;
+
+        const rowItem: AddressItem = {
           iedName,
           iedType: ied!.getAttribute('type')!,
           busRef: this.busConnections.get(iedName) ?? '',
           type: address?.tagName,
-          cbName: control.getAttribute('name'),
+          cbName: control.getAttribute('name') ?? '',
           appOrSmvId:
             control.tagName === 'GSEControl'
               ? control.getAttribute('appID') ?? ''
@@ -400,16 +450,16 @@ export default class TPMulticastNaming extends LitElement {
           appId:
             address?.querySelector('Address > P[type="APPID"]')?.textContent ??
             '',
-          vlanId:
-            address?.querySelector('Address > P[type="VLAN-ID"]')
-              ?.textContent ?? '',
+          vlanId: vlanId
+            ? `0x${vlanId} (${parseInt(vlanId, 16).toString(10)})`
+            : '',
           vlanPriority:
             address?.querySelector('Address > P[type="VLAN-PRIORITY"]')
               ?.textContent ?? '',
           minTime: address?.querySelector('MinTime')?.textContent ?? '',
           maxTime: address?.querySelector('MaxTime')?.textContent ?? '',
-          controlIdentity: identity(control),
-          addressIdentity: identity(address),
+          controlIdentity: `${identity(control)}`,
+          addressIdentity: `${identity(address)}`,
         };
 
         if (this.gridItems) {
@@ -678,7 +728,6 @@ export default class TPMulticastNaming extends LitElement {
 
     // update appId for GSEControl and smvId for SampledValueControls
     selectedControlElements.forEach(control => {
-      console.log(control);
       const type = control.tagName;
       const iedName = control.closest('IED')!.getAttribute('name');
 
@@ -709,34 +758,36 @@ export default class TPMulticastNaming extends LitElement {
     }
 
     selectedCommElements.forEach(element => {
-      // for comparison to detect changes
-      const newElement = <Element>element.cloneNode(true);
-
       const protNum = getProtectionNumber(
         element.closest('ConnectedAP')!.getAttribute('iedName')!
       );
       const newMac = nextMac[element.tagName][protNum]();
-      newElement.querySelector(`Address > P[type="MAC-Address"]`)!.textContent =
-        newMac;
+
+      edits.push(
+        ...updateTextContent(
+          element.querySelector('Address > P[type="MAC-Address"]'),
+          newMac
+        )
+      );
 
       if (element.tagName === 'GSE') {
         // MinTime and MaxTime for GSE
-        const hasMinTime = element.querySelector('MinTime')?.textContent;
-        const hasMaxTime = element.querySelector('MaxTime')?.textContent;
+        const minTime = element.querySelector('MinTime');
+        const maxTime = element.querySelector('MaxTime');
 
-        if (hasMinTime) {
+        if (minTime) {
           if (
             element.getAttribute('cbName')?.toUpperCase().includes('CTL') ||
             element.getAttribute('cbName')?.toUpperCase().includes('TRIP')
           ) {
-            newElement.querySelector('MinTime')!.textContent = '4';
+            edits.push(...updateTextContent(minTime, '4'));
           } else {
-            newElement.querySelector('MinTime')!.textContent = '100';
+            edits.push(...updateTextContent(minTime, '100'));
           }
         }
 
-        if (hasMaxTime) {
-          newElement.querySelector('MaxTime')!.textContent = '1000';
+        if (maxTime) {
+          edits.push(...updateTextContent(maxTime, '1000'));
         }
       }
 
@@ -754,57 +805,112 @@ export default class TPMulticastNaming extends LitElement {
       }
 
       const newAppId = nextAppId[element.tagName][protType]();
-      newElement.querySelector(`Address > P[type="APPID"]`)!.textContent =
-        newAppId;
+      edits.push(
+        ...updateTextContent(
+          element.querySelector('Address > P[type="APPID"]'),
+          newAppId
+        )
+      );
 
       // PRIORITY
-      if (element.tagName === 'GSE') {
-        newElement.querySelector(
-          `Address > P[type="VLAN-PRIORITY"]`
-        )!.textContent = '4';
-      } else if (element.tagName === 'SMV') {
-        newElement.querySelector(
-          `Address > P[type="VLAN-PRIORITY"]`
-        )!.textContent = '5';
-      }
+      const priority = element.tagName === 'GSE' ? '4' : '5';
+      edits.push(
+        ...updateTextContent(
+          element.querySelector('Address > P[type="VLAN-PRIORITY"]'),
+          priority
+        )
+      );
 
       // VLAN ID
+      let vlan;
       if (element.tagName === 'GSE') {
-        newElement.querySelector(`Address > P[type="VLAN-ID"]`)!.textContent =
+        vlan =
           protNum === '2'
             ? VLAN_GSE_P2.toString(16).toUpperCase()
             : VLAN_GSE_P1.toString(16).toUpperCase();
-      } else if (element.tagName === 'SMV') {
-        newElement.querySelector(`Address > P[type="VLAN-ID"]`)!.textContent =
+      } else {
+        vlan =
           protNum === '2'
             ? VLAN_SMV_P2.toString(16).toUpperCase()
             : VLAN_SMV_P1.toString(16).toUpperCase();
       }
-
-      if (!element.isEqualNode(newElement)) {
-        // add new elements
-        edits.push({
-          parent: element.parentElement!,
-          node: newElement,
-          reference: element,
-        });
-
-        // remove old elements
-        edits.push({ node: element });
-      }
-
-      /**
-       * TODO: NOT IMPLEMENTED YET - DO WE WANT THIS?
-       * GOOSE Id (SCD parameter appID)
-       * This should be the IED name, delimited with _ in the following manner e.g. XAT_232_P1, f
-       * followed by the GSEControl name with a $ delimiter, e.g. XAT_232_P1$Status_0
-       *
-       */
+      edits.push(
+        ...updateTextContent(
+          element.querySelector('Address > P[type="VLAN-ID"]'),
+          vlan
+        )
+      );
     });
 
     if (edits) {
       this.dispatchEvent(newEditEvent(edits));
     }
+  }
+
+  downloadItems(): void {
+    const csvLines: string[][] = [];
+    // header
+    csvLines.push([
+      'IED Name',
+      'IED Type',
+      'Type',
+      'Bus Reference',
+      'Control Name',
+      'App or SMV Id',
+      'MAC Address',
+      'APP ID',
+      'VLAN Id',
+      'VLAN Priority',
+      'Min Time',
+      'Max Time',
+    ]);
+    // content
+    const items =
+      this.selectedItems.length === 0 ? this.gridItems : this.selectedItems;
+    items.forEach(item => {
+      const rowValues = [
+        item.iedName,
+        item.iedType,
+        item.type,
+        item.busRef,
+        item.cbName,
+        item.appOrSmvId,
+        item.mac,
+        item.appId,
+        item.vlanId,
+        item.vlanPriority,
+        item.minTime,
+        item.maxTime,
+      ];
+      csvLines.push(rowValues);
+    });
+
+    const content: string[] = [];
+    csvLines.forEach(lineData => content.push(lineData.join(',')));
+
+    const fileContent = content.join('\n');
+
+    const blob = new Blob([fileContent], {
+      type: 'text/csv',
+    });
+
+    // Push the data back to the user.
+    const a = document.createElement('a');
+    // a.download = `${stripExtensionFromName(
+    //   this.docName
+    // )}-comms-addresses.csv`;
+
+    a.download = 'comms-addresses.csv';
+
+    a.href = URL.createObjectURL(blob);
+    a.dataset.downloadurl = ['text/csv', a.download, a.href].join(':');
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+    }, 5000);
   }
 
   renderButtons(): TemplateResult {
@@ -855,54 +961,46 @@ export default class TPMulticastNaming extends LitElement {
       </mwc-button>
       <mwc-button
         outlined
-        icon="drive_file_rename_outline"
+        icon="lan"
         class="rename-button"
         label="Show Used VLANs (${sizeSelectedItems || '0'})"
         ?disabled=${sizeSelectedItems === 0}
         @click=${() => {
-          if (!this.doc) return;
-
-          const selectedCommElements = (<any>this.selectedItems)
-            .map((item: { type: string; addressIdentity: string | number }) => {
-              const gSEorSMV = this.doc.querySelector(
-                selector(item.type, item.addressIdentity)
-              )!;
-              return gSEorSMV;
-            })
-            .filter((e: Element | null) => e !== null);
-
-          const selectedControlElements = (<any>this.selectedItems)
-            .map((item: { type: string; controlIdentity: string | number }) => {
-              const control = this.doc.querySelector(
-                selector(
-                  item.type === 'GSE' ? 'GSEControl' : 'SampledValueControl',
-                  item.controlIdentity
-                )
-              )!;
-              return control;
-            })
-            .filter((e: Element | null) => e !== null);
-
-          this.updateCommElements(
-            selectedCommElements,
-            selectedControlElements
-          );
-
-          this.gridItems = [];
-          this.grid.selectedItems = [];
-          this.selectedItems = [];
-
-          this.updateContent();
-          this.grid.clearCache();
+          console.log('hi');
         }}
       >
-      </mwc-button>`;
+      </mwc-button>
+      <mwc-button
+        outlined
+        icon="sync_alt"
+        class="rename-button"
+        label="Enrich Communications Subscriptions"
+        ?disabled=${sizeSelectedItems === 0}
+        @click=${() => {
+          console.log('also hi');
+        }}
+      >
+      </mwc-button> `;
+  }
+
+  renderDownloadButton(): TemplateResult {
+    return html`<mwc-icon-button
+      icon="csv"
+      label="Export to CSV (${this.selectedItems.length === 0
+        ? this.gridItems.length
+        : this.selectedItems.length})"
+      ?disabled=${this.selectedItems.length === 0 &&
+      this.gridItems.length === 0}
+      @click="${() => this.downloadItems()}"
+    ></mwc-icon-button>`;
   }
 
   render(): TemplateResult {
     return html`<section>
-      ${this.renderFilterButtons()} ${this.renderSelectionList()}
-      ${this.renderButtons()}
+      <div id="topMenu">
+        ${this.renderFilterButtons()} ${this.renderDownloadButton()}
+      </div>
+      ${this.renderSelectionList()} ${this.renderButtons()}
     </section> `;
   }
 
@@ -935,6 +1033,12 @@ export default class TPMulticastNaming extends LitElement {
 
     section {
       padding: 15px;
+    }
+
+    #topMenu {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
     /* Hide the icon of unselected menu items that are in a group */
