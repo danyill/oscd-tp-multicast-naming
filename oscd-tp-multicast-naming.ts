@@ -49,9 +49,14 @@ type AppObject = {
   };
 };
 
+type VlanPair = {
+  prot1Id: string;
+  prot2Id: string;
+};
+
 type VlanAllocation = {
   [key: string]: {
-    [key: string]: () => string[];
+    [key: string]: () => VlanPair | null;
   };
 };
 
@@ -106,11 +111,6 @@ const SMVAPPID = {
   P1: { min: 0x5000, max: 0x5fff },
   P2: { min: 0x6000, max: 0x6fff },
 };
-
-const VLAN_GSE_P1 = 1000;
-const VLAN_GSE_P2 = 1006;
-const VLAN_SMV_P1 = 1001;
-const VLAN_SMV_P2 = 1007;
 
 const TPNS = 'https://transpower.co.nz/SCL/SCD/Communication/v1';
 
@@ -238,7 +238,7 @@ function getAllocatedVlans(doc: XMLDocument): AllocatedVlans {
       return Array.from(container[0].getElementsByTagNameNS(TPNS, 'VLAN')).map(
         vlan => ({
           serviceName: vlan.getAttribute('serviceName') ?? '',
-          serviceType: vlan.getAttribute('serviceName') ?? '',
+          serviceType: vlan.getAttribute('serviceType') ?? '',
           useCase: vlan.getAttribute('useCase') ?? '',
           prot1Id: vlan.getAttribute('prot1Id') ?? '',
           prot2Id: vlan.getAttribute('prot2Id') ?? '',
@@ -279,7 +279,7 @@ export function vlanIdRangeGenerator(
   serviceType: 'SMV' | 'GSE' | 'InterProt',
   useCase: 'Station' | 'Bus',
   ignoreValues: string[]
-): () => string[] {
+): () => VlanPair | null {
   const { stationVlans, busVlans } = getAllocatedVlans(doc);
   const vlans = useCase === 'Station' ? stationVlans : busVlans;
 
@@ -303,12 +303,12 @@ export function vlanIdRangeGenerator(
     const uniqueVlan = range.find(vlan => !usedVlanNumbers.has(vlan));
     if (uniqueVlan) {
       usedVlanNumbers.add(uniqueVlan);
-      return [
-        uniqueVlan?.toString(16).toUpperCase(),
-        (uniqueVlan + p2Offset)?.toString(16).toUpperCase() ?? '',
-      ];
+      return {
+        prot1Id: uniqueVlan?.toString(16).toUpperCase(),
+        prot2Id: (uniqueVlan + p2Offset)?.toString(16).toUpperCase() ?? '',
+      };
     }
-    return ['', ''];
+    return null;
   };
 }
 
@@ -374,7 +374,7 @@ function displayVlan(vlanId: string): TemplateResult {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function writeVlan(doc: XMLDocument, vlan: Vlan) {
+function writeVlan(doc: XMLDocument, vlan: Vlan, dispatchElement: Element) {
   // TODO: Handle lack of Communication container
   const communicationContainer = doc.querySelector('Communication');
 
@@ -383,7 +383,10 @@ function writeVlan(doc: XMLDocument, vlan: Vlan) {
   );
 
   if (!vlanContainer) {
-    const vlanAllocation = doc.createElement('Private');
+    const vlanAllocation = doc.createElementNS(
+      'http://www.iec.ch/61850/2003/SCL',
+      'Private'
+    );
     vlanAllocation.setAttribute('type', 'Transpower-VLAN-Allocation');
     vlanAllocation.appendChild(doc.createElementNS(TPNS, 'Station'));
     vlanAllocation.appendChild(doc.createElementNS(TPNS, 'Bus'));
@@ -392,40 +395,32 @@ function writeVlan(doc: XMLDocument, vlan: Vlan) {
       parent: communicationContainer!,
       reference: communicationContainer!.firstElementChild,
     };
-    doc.dispatchEvent(newEditEvent(edit));
+    dispatchElement.dispatchEvent(newEditEvent(edit));
   }
+
+  const instantiatedVlanContainer = doc.querySelector(
+    'Private[type="Transpower-VLAN-Allocation"]'
+  );
 
   const vlanUseCaseContainer =
     vlan.useCase === 'Station'
-      ? vlanContainer?.getElementsByTagNameNS(TPNS, 'Station')
-      : vlanContainer?.getElementsByTagNameNS(TPNS, 'Bus');
+      ? instantiatedVlanContainer?.getElementsByTagNameNS(TPNS, 'Station')[0]
+      : instantiatedVlanContainer?.getElementsByTagNameNS(TPNS, 'Bus')[0];
 
   const newVlan = doc.createElementNS(TPNS, 'VLAN');
   // TODO: Fix my types
   (<any>Object.keys(vlan)).forEach((attrName: keyof Vlan) => {
     const attrValue = vlan[attrName]!;
-    newVlan.setAttributeNS(TPNS, attrName, attrValue);
+    newVlan.setAttribute(attrName, attrValue);
   });
 
   const edit = {
     node: newVlan,
     parent: vlanUseCaseContainer!,
-    reference: communicationContainer!.firstElementChild,
+    reference: null,
   };
-  doc.dispatchEvent(newEditEvent(edit));
+  dispatchElement.dispatchEvent(newEditEvent(edit));
 }
-
-// <Private type="Transpower-VLAN-Allocation" etpc:lastUpdated="2023-08-16:23:59:00">
-//         <etpc:Station>
-//             <etpc:VLAN serviceType="InterProt" serviceName="Intlk" prot1Id="1000" prot2Id="2000"/>
-//             <etpc:VLAN serviceType="SV" serviceName="VTSel" prot1Id="1000" prot2Id="2000"/>
-//         </etpc:Station>
-//         <etpc:Bus>
-//             <etpc:VLAN serviceType="GSE" serviceName="ARecl" prot1Id="50" prot2Id="50" busName="Bus_A"/>
-//             <etpc:VLAN serviceType="GSE" serviceName="Ctl/Ind/Test" prot1Id="100" prot2Id="200" busName="Bus_A"/>
-//             <etpc:VLAN serviceType="SMV" serviceName="Bus" prot1Id="150" prot2Id="250" busName="Bus_B"/>
-//         </etpc:Bus>
-//     </Private>
 
 function getBusConnections(doc: XMLDocument) {
   if (!doc) return new Map();
@@ -663,7 +658,20 @@ export default class TPMulticastNaming extends LitElement {
       });
   }
 
-  async firstUpdated(): Promise<void> {
+  protected updated(
+    changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>
+  ): void {
+    super.updated(changedProperties);
+
+    // When a new document is loaded or we do a subscription/we will reset the Map to clear old entries.
+    // TODO: Be able to detect the same document loaded twice, currently lack a way to check for this
+    // https://github.com/openscd/open-scd-core/issues/92
+    if (changedProperties.has('doc')) {
+      this.gridItems = [];
+      this.selectedItems = [];
+      this.updateContent();
+    }
+
     if (this.busConnectionMenuUI) {
       this.busConnectionMenuUI!.anchor = <HTMLElement>(
         this.busConnectionMenuButtonUI
@@ -681,21 +689,6 @@ export default class TPMulticastNaming extends LitElement {
         this.gridItems = [];
         this.updateContent();
       });
-    }
-  }
-
-  protected updated(
-    changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>
-  ): void {
-    super.updated(changedProperties);
-
-    // When a new document is loaded or we do a subscription/we will reset the Map to clear old entries.
-    // TODO: Be able to detect the same document loaded twice, currently lack a way to check for this
-    // https://github.com/openscd/open-scd-core/issues/92
-    if (changedProperties.has('doc')) {
-      this.gridItems = [];
-      this.selectedItems = [];
-      this.updateContent();
     }
   }
 
@@ -925,23 +918,7 @@ export default class TPMulticastNaming extends LitElement {
       edits = [];
     }
 
-    // now we do something new
-    //     <Private type="Transpower-VLAN-Allocation" etpc:lastUpdated="2023-08-16:23:59:00">
-    //     <etpc:Station>
-    //         <etpc:VLAN serviceName="Intlk" prot1Id="1000" prot2Id="2000"/>
-    //         <etpc:VLAN serviceName="VTSel" prot1Id="1000" prot2Id="2000"/>
-    //     </etpc:Station>
-    //     <etpc:Bus>
-    //         <etpc:VLAN serviceName="ARecl" prot1Id="50" prot2Id="50" busName="Bus_A"/>
-    //         <etpc:VLAN serviceName="Ctl/Ind/Test" prot1Id="100" prot2Id="200" busName="Bus_A"/>
-    //         <etpc:VLAN serviceName="Bus" prot1Id="150" prot2Id="250" busName="Bus_B"/>
-    //     </etpc:Bus>
-    // </Private>
-
-    console.log('now we do something new');
-
     const busConnections = getBusConnections(this.doc);
-
     const busToIed = new Map<string, string[]>();
 
     Array.from(busConnections.keys()).forEach(iedName => {
@@ -953,25 +930,143 @@ export default class TPMulticastNaming extends LitElement {
       }
     });
 
-    console.log(busToIed);
-
-    Array.from(busToIed.keys()).forEach(busName => {
+    // todo, tidy this
+    Array.from([...busToIed.keys(), 'NOBUSES']).forEach(busName => {
       selectedControlElements
-        .filter(
-          ctrl =>
-            busConnections.get(ctrl.closest('IED')!.getAttribute('name')!) ===
-            busName
-        )
-        .forEach(ctrl => {
+        .filter(ctrl => {
           const iedName = ctrl.closest('IED')!.getAttribute('name');
-          const connectedBus = busConnections.get(iedName);
-          const addr = getCommAddress(ctrl);
+          return (
+            busConnections.get(iedName!) === busName ||
+            (busName === 'NOBUSES' && !busConnections.has(iedName))
+          );
+        })
+        .forEach(control => {
+          const iedName = control.closest('IED')!.getAttribute('name')!;
+          const addr = getCommAddress(control);
 
-          ctrl.getAttribute('name');
+          if (!addr) return;
 
-          console.log('hey', busName, iedName, connectedBus, addr, ctrl);
+          let smvIDFunction: string | undefined;
+          if (addr)
+            smvIDFunction = control.getAttribute('smvID')?.split('/')[1];
+
+          const controlName = control.getAttribute('name')!;
+
+          let useCase: 'Bus' | 'Station' | undefined;
+          let serviceType: 'GSE' | 'SMV' | 'InterProt';
+
+          serviceType = control.tagName === 'GSEControl' ? 'GSE' : 'SMV';
+
+          let serviceName: string | undefined;
+          if (
+            controlName.startsWith('Ctl') ||
+            controlName.startsWith('Ind') ||
+            controlName.startsWith('Test')
+          ) {
+            serviceName = 'Ctl/Ind/Test';
+            useCase = 'Bus';
+          } else if (controlName.startsWith('ARecl')) {
+            serviceName = 'ARecl';
+            serviceType = 'InterProt';
+            useCase = 'Bus';
+          } else if (controlName.startsWith('SwgrPos')) {
+            serviceName = 'SwgrPos';
+            serviceType = 'InterProt';
+            useCase = 'Bus';
+          } else if (controlName.startsWith('ILock')) {
+            serviceName = 'ILock';
+            useCase = 'Station';
+          } else if (controlName.startsWith('EveTrig')) {
+            serviceName = 'EveTrig';
+            useCase = 'Station';
+          } else if (controlName.startsWith('SPSBus')) {
+            serviceName = 'SPSBus';
+            useCase = 'Bus';
+          } else if (controlName.startsWith('SPSStn')) {
+            serviceName = 'SPSStn';
+            useCase = 'Bus';
+          } else if (controlName.startsWith('CBFailInit')) {
+            serviceName = 'CBFailInit';
+            useCase = 'Bus';
+          } else if (serviceType === 'SMV' && !smvIDFunction) {
+            serviceName = 'BusSV';
+            useCase = 'Bus';
+          } else if (serviceType === 'SMV' && smvIDFunction === 'VTSelBus') {
+            serviceName = 'VTSelBus';
+            useCase = 'Bus';
+          } else if (serviceType === 'SMV' && smvIDFunction === 'VTSelStn') {
+            serviceName = 'VTSelStn';
+            useCase = 'Station';
+          }
+
+          if (
+            serviceName &&
+            serviceType &&
+            (useCase === 'Station' ||
+              (useCase === 'Bus' && busName !== 'NOBUSES'))
+          ) {
+            const { stationVlans, busVlans } = getAllocatedVlans(this.doc);
+            const existingVlans =
+              useCase === 'Station' ? stationVlans : busVlans;
+
+            const existingVlan = existingVlans?.find(
+              vlan =>
+                (vlan.busName === busName || busName === 'NOBUSES') &&
+                vlan.serviceName === serviceName
+            );
+
+            const vlanId =
+              getProtectionNumber(iedName) === '1'
+                ? existingVlan?.prot1Id
+                : existingVlan?.prot2Id;
+
+            if (vlanId) {
+              // update the vlan
+              // console.log('Existing VLAN:', vlanId);
+              edits.push(
+                ...updateTextContent(
+                  addr.querySelector('Address > P[type="VLAN-ID"]'),
+                  vlanId
+                )
+              );
+            } else {
+              // allocate VLAN
+              const newVlanIds = nextVlan[useCase][serviceType]();
+
+              const chosenVlanId =
+                getProtectionNumber(iedName) === '1'
+                  ? newVlanIds?.prot1Id
+                  : newVlanIds?.prot2Id;
+
+              if (newVlanIds) {
+                const vlan: Vlan = {
+                  serviceName,
+                  serviceType,
+                  useCase,
+                  ...newVlanIds!,
+                  ...(busName !== 'NOBUSES' && { busName }),
+                };
+
+                writeVlan(this.doc, vlan, this);
+
+                // TODO: Parameterise 3E7.
+                edits.push(
+                  ...updateTextContent(
+                    addr.querySelector('Address > P[type="VLAN-ID"]'),
+                    chosenVlanId ?? '3E7'
+                  )
+                );
+                // console.log('New VLAN:', vlan);
+              }
+            }
+          }
         });
     });
+
+    if (edits) {
+      this.dispatchEvent(newEditEvent(edits));
+      edits = [];
+    }
 
     // selectedCommElements.forEach(commElement => {
 
@@ -1039,26 +1134,6 @@ export default class TPMulticastNaming extends LitElement {
         ...updateTextContent(
           element.querySelector('Address > P[type="VLAN-PRIORITY"]'),
           priority
-        )
-      );
-
-      // VLAN ID
-      let vlan;
-      if (element.tagName === 'GSE') {
-        vlan =
-          protNum === '2'
-            ? VLAN_GSE_P2.toString(16).toUpperCase()
-            : VLAN_GSE_P1.toString(16).toUpperCase();
-      } else {
-        vlan =
-          protNum === '2'
-            ? VLAN_SMV_P2.toString(16).toUpperCase()
-            : VLAN_SMV_P1.toString(16).toUpperCase();
-      }
-      edits.push(
-        ...updateTextContent(
-          element.querySelector('Address > P[type="VLAN-ID"]'),
-          vlan
         )
       );
     });
@@ -1135,6 +1210,11 @@ export default class TPMulticastNaming extends LitElement {
     }, 5000);
   }
 
+  getUsedVlansCount(): number {
+    const { stationVlans, busVlans } = getAllocatedVlans(this.doc);
+    return (stationVlans ?? []).length + (busVlans ?? []).length;
+  }
+
   renderButtons(): TemplateResult {
     const sizeSelectedItems = this.selectedItems.length;
     return html`
@@ -1144,7 +1224,7 @@ export default class TPMulticastNaming extends LitElement {
             outlined
             icon="lan"
             class="spaced-button"
-            label="Show Used VLANs"
+            label="Show Used VLANs (${this.getUsedVlansCount()})"
             @click=${() => {
               this.vlanListUI.show();
             }}
@@ -1234,15 +1314,23 @@ export default class TPMulticastNaming extends LitElement {
   renderVlanList(): TemplateResult {
     const { stationVlans, busVlans } = getAllocatedVlans(this.doc);
 
+    const vlanCompare = (vlan1: Vlan, vlan2: Vlan) => {
+      const vlan1Desc = `${vlan1.busName} ${vlan1.serviceName}`;
+      const vlan2Desc = `${vlan2.busName} ${vlan2.serviceName}`;
+      return vlan1Desc.localeCompare(vlan2Desc);
+    };
+
     return html`<mwc-dialog id="vlanList" heading="VLAN List">
       <oscd-filtered-list
         ><h3>Station VLANs</h3>
         ${stationVlans
-          ? stationVlans.map(vlan => this.renderVlan(vlan, 'station'))
+          ? stationVlans
+              .sort(vlanCompare)
+              .map(vlan => this.renderVlan(vlan, 'Station'))
           : html`<mwc-list-item>No VLANs present</mwc-list-item>`}
         <h3>Bus VLANs</h3>
         ${busVlans
-          ? busVlans.map(vlan => this.renderVlan(vlan, 'bus'))
+          ? busVlans.sort(vlanCompare).map(vlan => this.renderVlan(vlan, 'Bus'))
           : html`<mwc-list-item>No VLANs present</mwc-list-item>`}
       </oscd-filtered-list>
     </mwc-dialog>`;

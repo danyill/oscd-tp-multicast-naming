@@ -113,8 +113,9 @@ Feel free to log issues to request fixes, improvements or new features.
 *** GOOSE `CBFailInit` is OC(CBFail) to the other bus in a bus or breaker and a half protection scheme and is within the station
 
 ** On the `smvID` parameter in the control block (as e.g. IEC 61869-9 governs the `SampledValueControl` control block name and the `DataSet` name). This has to be unique substation wide, so the suffix of this value is used to classify the traffic:
-*** No identified suffix -- Belongs to the bus
-*** `VTSel` -- Belongs to the station
+*** `BusSV` -- No identified suffix -- Belongs to the bus
+*** `VTSelBus` -- Belongs to the bus
+*** `VTSelStn` -- Belongs to the station
 
 * Buses are determine by a Function named `CommAddressing` under a Bay in the `Substation` section with a `name` which begins `Bus` followed by an underscore and the bus name.
 * The bus name is the definition of "bus" in the above.
@@ -160,23 +161,22 @@ VLAN information is stored within the `Communication` section as a `Private` ele
 
 [source,xml]
 ----
-<Private type="Transpower-VLAN-Allocation" etpc:lastUpdated="2023-08-16:23:59:00">
-      <etpc:Station>
-          <etpc:VLAN serviceName="Intlk" prot1Id="1000" prot2Id="2000"/>
-          <etpc:VLAN serviceName="VTSel" prot1Id="1001" prot2Id="2001"/>
-      </etpc:Station>
-      <etpc:Bus>
-          <etpc:VLAN serviceName="ARecl" prot1Id="50" prot2Id="50"/>
-          <etpc:VLAN serviceName="Ctl/Ind/Test" prot1Id="100" prot2Id="200"/>
-          <etpc:VLAN serviceName="Bus" prot1Id="150" prot2Id="250"/>
-      </etpc:Bus>
-  </Private>
+<Private type="Transpower-VLAN-Allocation">
+    <etpc:Station/>
+    <etpc:Bus>
+        <etpc:VLAN etpc:serviceName="Ctl/Ind/Test" etpc:serviceType="GSE" etpc:useCase="Bus" etpc:prot1Id="64" etpc:prot2Id="C8" etpc:busName="BusA"/>
+        <etpc:VLAN etpc:serviceName="BusSV" etpc:serviceType="SMV" etpc:useCase="Bus" etpc:prot1Id="96" etpc:prot2Id="FA" etpc:busName="BusA"/>
+        <etpc:VLAN etpc:serviceName="Ctl/Ind/Test" etpc:serviceType="GSE" etpc:useCase="Bus" etpc:prot1Id="65" etpc:prot2Id="C9" etpc:busName="BusB"/>
+        <etpc:VLAN etpc:serviceName="BusSV" etpc:serviceType="SMV" etpc:useCase="Bus" etpc:prot1Id="97" etpc:prot2Id="FB" etpc:busName="BusB"/>
+    </etpc:Bus>
+</Private>
 ----
 
 Further requirements from development:
 
 * VLANs will always be incremented in pairs (whether or not they are required by both protection systems, they will be allocated for both).
 * VLANs will have a fixed increment between Prot1 and Prot2.
+* VLANs will initially be unallocated (i.e. set to a disabled VLAN, e.g. 999).
 
 == Using the Plugin
 
