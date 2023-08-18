@@ -17,6 +17,10 @@ import type { Dialog } from '@material/mwc-dialog';
 import type { List } from '@material/mwc-list';
 import type { Menu } from '@material/mwc-menu';
 import type { Grid } from '@vaadin/grid';
+type VlanPair = {
+    prot1Id: string;
+    prot2Id: string;
+};
 type AddressItem = {
     iedName: string;
     iedType: string;
@@ -60,7 +64,7 @@ export declare function appIdGenerator(doc: XMLDocument, serviceType: 'SMV' | 'G
  * @param type - whether the GOOSE is a Trip GOOSE resulting in different APPID range - default false
  * @returns a function generating increasing unused `APPID` within `doc` on subsequent invocations
  */
-export declare function vlanIdRangeGenerator(doc: XMLDocument, serviceType: 'SMV' | 'GSE' | 'InterProt', useCase: 'Station' | 'Bus', ignoreValues: string[]): () => string[];
+export declare function vlanIdRangeGenerator(doc: XMLDocument, serviceType: 'SMV' | 'GSE' | 'InterProt', useCase: 'Station' | 'Bus', ignoreValues: string[]): () => VlanPair | null;
 export default class TPMulticastNaming extends LitElement {
     /** The document being edited as provided to plugins by [[`OpenSCD`]]. */
     doc: XMLDocument;
@@ -83,11 +87,11 @@ export default class TPMulticastNaming extends LitElement {
     busConnectionMenuUI?: Menu;
     renderFilterButtons(): TemplateResult;
     protected updateContent(): void;
-    firstUpdated(): Promise<void>;
     protected updated(changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>): void;
     renderSelectionList(): TemplateResult;
     updateCommElements(selectedCommElements: Element[], selectedControlElements: Element[]): void;
     downloadItems(): void;
+    getUsedVlansCount(): number;
     renderButtons(): TemplateResult;
     renderDownloadButton(): TemplateResult;
     renderVlan(vlan: Vlan, type: string): TemplateResult;

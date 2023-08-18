@@ -41803,10 +41803,6 @@ const SMVAPPID = {
     P1: { min: 0x5000, max: 0x5fff },
     P2: { min: 0x6000, max: 0x6fff },
 };
-const VLAN_GSE_P1 = 1000;
-const VLAN_GSE_P2 = 1006;
-const VLAN_SMV_P1 = 1001;
-const VLAN_SMV_P2 = 1007;
 const TPNS = 'https://transpower.co.nz/SCL/SCD/Communication/v1';
 function convertToMac(mac) {
     const str = 0 + mac.toString(16).toUpperCase();
@@ -41903,7 +41899,7 @@ function getAllocatedVlans(doc) {
                 var _a, _b, _c, _d, _e, _f;
                 return ({
                     serviceName: (_a = vlan.getAttribute('serviceName')) !== null && _a !== void 0 ? _a : '',
-                    serviceType: (_b = vlan.getAttribute('serviceName')) !== null && _b !== void 0 ? _b : '',
+                    serviceType: (_b = vlan.getAttribute('serviceType')) !== null && _b !== void 0 ? _b : '',
                     useCase: (_c = vlan.getAttribute('useCase')) !== null && _c !== void 0 ? _c : '',
                     prot1Id: (_d = vlan.getAttribute('prot1Id')) !== null && _d !== void 0 ? _d : '',
                     prot2Id: (_e = vlan.getAttribute('prot2Id')) !== null && _e !== void 0 ? _e : '',
@@ -41951,12 +41947,12 @@ function vlanIdRangeGenerator(doc, serviceType, useCase, ignoreValues) {
         const uniqueVlan = range.find(vlan => !usedVlanNumbers.has(vlan));
         if (uniqueVlan) {
             usedVlanNumbers.add(uniqueVlan);
-            return [
-                uniqueVlan === null || uniqueVlan === void 0 ? void 0 : uniqueVlan.toString(16).toUpperCase(),
-                (_b = (_a = (uniqueVlan + p2Offset)) === null || _a === void 0 ? void 0 : _a.toString(16).toUpperCase()) !== null && _b !== void 0 ? _b : '',
-            ];
+            return {
+                prot1Id: uniqueVlan === null || uniqueVlan === void 0 ? void 0 : uniqueVlan.toString(16).toUpperCase(),
+                prot2Id: (_b = (_a = (uniqueVlan + p2Offset)) === null || _a === void 0 ? void 0 : _a.toString(16).toUpperCase()) !== null && _b !== void 0 ? _b : '',
+            };
         }
-        return ['', ''];
+        return null;
     };
 }
 function isEven(num) {
@@ -41997,17 +41993,40 @@ function updateTextContent(node, newContent) {
 function displayVlan(vlanId) {
     return x `<code>0x${vlanId}</code> (<code>${parseInt(vlanId, 16).toString(10)}</code>)`;
 }
-// <Private type="Transpower-VLAN-Allocation" etpc:lastUpdated="2023-08-16:23:59:00">
-//         <etpc:Station>
-//             <etpc:VLAN serviceType="InterProt" serviceName="Intlk" prot1Id="1000" prot2Id="2000"/>
-//             <etpc:VLAN serviceType="SV" serviceName="VTSel" prot1Id="1000" prot2Id="2000"/>
-//         </etpc:Station>
-//         <etpc:Bus>
-//             <etpc:VLAN serviceType="GSE" serviceName="ARecl" prot1Id="50" prot2Id="50" busName="Bus_A"/>
-//             <etpc:VLAN serviceType="GSE" serviceName="Ctl/Ind/Test" prot1Id="100" prot2Id="200" busName="Bus_A"/>
-//             <etpc:VLAN serviceType="SMV" serviceName="Bus" prot1Id="150" prot2Id="250" busName="Bus_B"/>
-//         </etpc:Bus>
-//     </Private>
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function writeVlan(doc, vlan, dispatchElement) {
+    // TODO: Handle lack of Communication container
+    const communicationContainer = doc.querySelector('Communication');
+    const vlanContainer = doc.querySelector('Private[type="Transpower-VLAN-Allocation"]');
+    if (!vlanContainer) {
+        const vlanAllocation = doc.createElementNS('http://www.iec.ch/61850/2003/SCL', 'Private');
+        vlanAllocation.setAttribute('type', 'Transpower-VLAN-Allocation');
+        vlanAllocation.appendChild(doc.createElementNS(TPNS, 'Station'));
+        vlanAllocation.appendChild(doc.createElementNS(TPNS, 'Bus'));
+        const edit = {
+            node: vlanAllocation,
+            parent: communicationContainer,
+            reference: communicationContainer.firstElementChild,
+        };
+        dispatchElement.dispatchEvent(newEditEvent(edit));
+    }
+    const instantiatedVlanContainer = doc.querySelector('Private[type="Transpower-VLAN-Allocation"]');
+    const vlanUseCaseContainer = vlan.useCase === 'Station'
+        ? instantiatedVlanContainer === null || instantiatedVlanContainer === void 0 ? void 0 : instantiatedVlanContainer.getElementsByTagNameNS(TPNS, 'Station')[0]
+        : instantiatedVlanContainer === null || instantiatedVlanContainer === void 0 ? void 0 : instantiatedVlanContainer.getElementsByTagNameNS(TPNS, 'Bus')[0];
+    const newVlan = doc.createElementNS(TPNS, 'VLAN');
+    // TODO: Fix my types
+    Object.keys(vlan).forEach((attrName) => {
+        const attrValue = vlan[attrName];
+        newVlan.setAttribute(attrName, attrValue);
+    });
+    const edit = {
+        node: newVlan,
+        parent: vlanUseCaseContainer,
+        reference: null,
+    };
+    dispatchElement.dispatchEvent(newEditEvent(edit));
+}
 function getBusConnections(doc) {
     if (!doc)
         return new Map();
@@ -42176,7 +42195,16 @@ class TPMulticastNaming extends s$2 {
             }
         });
     }
-    async firstUpdated() {
+    updated(changedProperties) {
+        super.updated(changedProperties);
+        // When a new document is loaded or we do a subscription/we will reset the Map to clear old entries.
+        // TODO: Be able to detect the same document loaded twice, currently lack a way to check for this
+        // https://github.com/openscd/open-scd-core/issues/92
+        if (changedProperties.has('doc')) {
+            this.gridItems = [];
+            this.selectedItems = [];
+            this.updateContent();
+        }
         if (this.busConnectionMenuUI) {
             this.busConnectionMenuUI.anchor = (this.busConnectionMenuButtonUI);
             this.busConnectionMenuUI.addEventListener('closed', () => {
@@ -42191,17 +42219,6 @@ class TPMulticastNaming extends s$2 {
                 this.gridItems = [];
                 this.updateContent();
             });
-        }
-    }
-    updated(changedProperties) {
-        super.updated(changedProperties);
-        // When a new document is loaded or we do a subscription/we will reset the Map to clear old entries.
-        // TODO: Be able to detect the same document loaded twice, currently lack a way to check for this
-        // https://github.com/openscd/open-scd-core/issues/92
-        if (changedProperties.has('doc')) {
-            this.gridItems = [];
-            this.selectedItems = [];
-            this.updateContent();
         }
     }
     renderSelectionList() {
@@ -42336,7 +42353,7 @@ class TPMulticastNaming extends s$2 {
             return (_c = (_b = (_a = elem === null || elem === void 0 ? void 0 : elem.querySelector('Address > P[type="VLAN-ID"]')) === null || _a === void 0 ? void 0 : _a.textContent) === null || _b === void 0 ? void 0 : _b.toUpperCase()) !== null && _c !== void 0 ? _c : '';
         });
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        ({
+        const nextVlan = {
             Station: {
                 InterProt: vlanIdRangeGenerator(this.doc, 'InterProt', 'Station', ignoreVlanIds),
                 GSE: vlanIdRangeGenerator(this.doc, 'GSE', 'Station', ignoreVlanIds),
@@ -42347,7 +42364,7 @@ class TPMulticastNaming extends s$2 {
                 GSE: vlanIdRangeGenerator(this.doc, 'GSE', 'Bus', ignoreVlanIds),
                 SMV: vlanIdRangeGenerator(this.doc, 'SMV', 'Bus', ignoreVlanIds),
             },
-        });
+        };
         let edits = [];
         // update namespaces
         const namespaceUpdate = {
@@ -42392,19 +42409,6 @@ class TPMulticastNaming extends s$2 {
             this.dispatchEvent(newEditEvent(edits));
             edits = [];
         }
-        // now we do something new
-        //     <Private type="Transpower-VLAN-Allocation" etpc:lastUpdated="2023-08-16:23:59:00">
-        //     <etpc:Station>
-        //         <etpc:VLAN serviceName="Intlk" prot1Id="1000" prot2Id="2000"/>
-        //         <etpc:VLAN serviceName="VTSel" prot1Id="1000" prot2Id="2000"/>
-        //     </etpc:Station>
-        //     <etpc:Bus>
-        //         <etpc:VLAN serviceName="ARecl" prot1Id="50" prot2Id="50" busName="Bus_A"/>
-        //         <etpc:VLAN serviceName="Ctl/Ind/Test" prot1Id="100" prot2Id="200" busName="Bus_A"/>
-        //         <etpc:VLAN serviceName="Bus" prot1Id="150" prot2Id="250" busName="Bus_B"/>
-        //     </etpc:Bus>
-        // </Private>
-        console.log('now we do something new');
         const busConnections = getBusConnections(this.doc);
         const busToIed = new Map();
         Array.from(busConnections.keys()).forEach(iedName => {
@@ -42416,19 +42420,119 @@ class TPMulticastNaming extends s$2 {
                 busToIed.set(busName, [...busToIed.get(busName), iedName]);
             }
         });
-        console.log(busToIed);
-        Array.from(busToIed.keys()).forEach(busName => {
+        // todo, tidy this
+        Array.from([...busToIed.keys(), 'NOBUSES']).forEach(busName => {
             selectedControlElements
-                .filter(ctrl => busConnections.get(ctrl.closest('IED').getAttribute('name')) ===
-                busName)
-                .forEach(ctrl => {
+                .filter(ctrl => {
                 const iedName = ctrl.closest('IED').getAttribute('name');
-                const connectedBus = busConnections.get(iedName);
-                const addr = getCommAddress(ctrl);
-                ctrl.getAttribute('name');
-                console.log('hey', busName, iedName, connectedBus, addr, ctrl);
+                return (busConnections.get(iedName) === busName ||
+                    (busName === 'NOBUSES' && !busConnections.has(iedName)));
+            })
+                .forEach(control => {
+                var _a;
+                const iedName = control.closest('IED').getAttribute('name');
+                const addr = getCommAddress(control);
+                if (!addr)
+                    return;
+                let smvIDFunction;
+                if (addr)
+                    smvIDFunction = (_a = control.getAttribute('smvID')) === null || _a === void 0 ? void 0 : _a.split('/')[1];
+                const controlName = control.getAttribute('name');
+                let useCase;
+                let serviceType;
+                serviceType = control.tagName === 'GSEControl' ? 'GSE' : 'SMV';
+                let serviceName;
+                if (controlName.startsWith('Ctl') ||
+                    controlName.startsWith('Ind') ||
+                    controlName.startsWith('Test')) {
+                    serviceName = 'Ctl/Ind/Test';
+                    useCase = 'Bus';
+                }
+                else if (controlName.startsWith('ARecl')) {
+                    serviceName = 'ARecl';
+                    serviceType = 'InterProt';
+                    useCase = 'Bus';
+                }
+                else if (controlName.startsWith('SwgrPos')) {
+                    serviceName = 'SwgrPos';
+                    serviceType = 'InterProt';
+                    useCase = 'Bus';
+                }
+                else if (controlName.startsWith('ILock')) {
+                    serviceName = 'ILock';
+                    useCase = 'Station';
+                }
+                else if (controlName.startsWith('EveTrig')) {
+                    serviceName = 'EveTrig';
+                    useCase = 'Station';
+                }
+                else if (controlName.startsWith('SPSBus')) {
+                    serviceName = 'SPSBus';
+                    useCase = 'Bus';
+                }
+                else if (controlName.startsWith('SPSStn')) {
+                    serviceName = 'SPSStn';
+                    useCase = 'Bus';
+                }
+                else if (controlName.startsWith('CBFailInit')) {
+                    serviceName = 'CBFailInit';
+                    useCase = 'Bus';
+                }
+                else if (serviceType === 'SMV' && !smvIDFunction) {
+                    serviceName = 'BusSV';
+                    useCase = 'Bus';
+                }
+                else if (serviceType === 'SMV' && smvIDFunction === 'VTSelBus') {
+                    serviceName = 'VTSelBus';
+                    useCase = 'Bus';
+                }
+                else if (serviceType === 'SMV' && smvIDFunction === 'VTSelStn') {
+                    serviceName = 'VTSelStn';
+                    useCase = 'Station';
+                }
+                if (serviceName &&
+                    serviceType &&
+                    (useCase === 'Station' ||
+                        (useCase === 'Bus' && busName !== 'NOBUSES'))) {
+                    const { stationVlans, busVlans } = getAllocatedVlans(this.doc);
+                    const existingVlans = useCase === 'Station' ? stationVlans : busVlans;
+                    const existingVlan = existingVlans === null || existingVlans === void 0 ? void 0 : existingVlans.find(vlan => (vlan.busName === busName || busName === 'NOBUSES') &&
+                        vlan.serviceName === serviceName);
+                    const vlanId = getProtectionNumber(iedName) === '1'
+                        ? existingVlan === null || existingVlan === void 0 ? void 0 : existingVlan.prot1Id
+                        : existingVlan === null || existingVlan === void 0 ? void 0 : existingVlan.prot2Id;
+                    if (vlanId) {
+                        // update the vlan
+                        // console.log('Existing VLAN:', vlanId);
+                        edits.push(...updateTextContent(addr.querySelector('Address > P[type="VLAN-ID"]'), vlanId));
+                    }
+                    else {
+                        // allocate VLAN
+                        const newVlanIds = nextVlan[useCase][serviceType]();
+                        const chosenVlanId = getProtectionNumber(iedName) === '1'
+                            ? newVlanIds === null || newVlanIds === void 0 ? void 0 : newVlanIds.prot1Id
+                            : newVlanIds === null || newVlanIds === void 0 ? void 0 : newVlanIds.prot2Id;
+                        if (newVlanIds) {
+                            const vlan = {
+                                serviceName,
+                                serviceType,
+                                useCase,
+                                ...newVlanIds,
+                                ...(busName !== 'NOBUSES' && { busName }),
+                            };
+                            writeVlan(this.doc, vlan, this);
+                            // TODO: Parameterise 3E7.
+                            edits.push(...updateTextContent(addr.querySelector('Address > P[type="VLAN-ID"]'), chosenVlanId !== null && chosenVlanId !== void 0 ? chosenVlanId : '3E7'));
+                            // console.log('New VLAN:', vlan);
+                        }
+                    }
+                }
             });
         });
+        if (edits) {
+            this.dispatchEvent(newEditEvent(edits));
+            edits = [];
+        }
         // selectedCommElements.forEach(commElement => {
         //   console.log('hi');
         // });
@@ -42467,21 +42571,6 @@ class TPMulticastNaming extends s$2 {
             // PRIORITY
             const priority = element.tagName === 'GSE' ? '4' : '5';
             edits.push(...updateTextContent(element.querySelector('Address > P[type="VLAN-PRIORITY"]'), priority));
-            // VLAN ID
-            let vlan;
-            if (element.tagName === 'GSE') {
-                vlan =
-                    protNum === '2'
-                        ? VLAN_GSE_P2.toString(16).toUpperCase()
-                        : VLAN_GSE_P1.toString(16).toUpperCase();
-            }
-            else {
-                vlan =
-                    protNum === '2'
-                        ? VLAN_SMV_P2.toString(16).toUpperCase()
-                        : VLAN_SMV_P1.toString(16).toUpperCase();
-            }
-            edits.push(...updateTextContent(element.querySelector('Address > P[type="VLAN-ID"]'), vlan));
         });
         if (edits) {
             this.dispatchEvent(newEditEvent(edits));
@@ -42546,6 +42635,10 @@ class TPMulticastNaming extends s$2 {
             URL.revokeObjectURL(a.href);
         }, 5000);
     }
+    getUsedVlansCount() {
+        const { stationVlans, busVlans } = getAllocatedVlans(this.doc);
+        return (stationVlans !== null && stationVlans !== void 0 ? stationVlans : []).length + (busVlans !== null && busVlans !== void 0 ? busVlans : []).length;
+    }
     renderButtons() {
         const sizeSelectedItems = this.selectedItems.length;
         return x `
@@ -42555,7 +42648,7 @@ class TPMulticastNaming extends s$2 {
             outlined
             icon="lan"
             class="spaced-button"
-            label="Show Used VLANs"
+            label="Show Used VLANs (${this.getUsedVlansCount()})"
             @click=${() => {
             this.vlanListUI.show();
         }}
@@ -42623,15 +42716,22 @@ class TPMulticastNaming extends s$2 {
     }
     renderVlanList() {
         const { stationVlans, busVlans } = getAllocatedVlans(this.doc);
+        const vlanCompare = (vlan1, vlan2) => {
+            const vlan1Desc = `${vlan1.busName} ${vlan1.serviceName}`;
+            const vlan2Desc = `${vlan2.busName} ${vlan2.serviceName}`;
+            return vlan1Desc.localeCompare(vlan2Desc);
+        };
         return x `<mwc-dialog id="vlanList" heading="VLAN List">
       <oscd-filtered-list
         ><h3>Station VLANs</h3>
         ${stationVlans
-            ? stationVlans.map(vlan => this.renderVlan(vlan, 'station'))
+            ? stationVlans
+                .sort(vlanCompare)
+                .map(vlan => this.renderVlan(vlan, 'Station'))
             : x `<mwc-list-item>No VLANs present</mwc-list-item>`}
         <h3>Bus VLANs</h3>
         ${busVlans
-            ? busVlans.map(vlan => this.renderVlan(vlan, 'bus'))
+            ? busVlans.sort(vlanCompare).map(vlan => this.renderVlan(vlan, 'Bus'))
             : x `<mwc-list-item>No VLANs present</mwc-list-item>`}
       </oscd-filtered-list>
     </mwc-dialog>`;
