@@ -143,7 +143,7 @@ function vlanRange(min: number, max: number): number[] {
  * @param serviceType - SampledValueControl (SMV) or GSEControl (GSE)
  * @returns a function generating increasing unused `MAC-Address` within `doc` on subsequent invocations
  */
-export function macAddressGenerator(
+function macAddressGenerator(
   doc: XMLDocument,
   serviceType: 'SMV' | 'GSE',
   protectionType: '1' | '2',
@@ -437,6 +437,29 @@ function getBusConnections(doc: XMLDocument) {
     });
   });
   return bcs;
+}
+
+function getCurrentDateTimeWithTimeZone(): string {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+
+  const timeZoneOffset = now.getTimezoneOffset();
+  const timeZoneHours = Math.abs(Math.floor(timeZoneOffset / 60))
+    .toString()
+    .padStart(2, '0');
+  const timeZoneMinutes = (Math.abs(timeZoneOffset) % 60)
+    .toString()
+    .padStart(2, '0');
+  const timeZoneSign = timeZoneOffset < 0 ? '+' : '-';
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} ${timeZoneSign}${timeZoneHours}:${timeZoneMinutes}`;
 }
 
 export default class TPMulticastNaming extends LitElement {
@@ -931,6 +954,7 @@ export default class TPMulticastNaming extends LitElement {
     });
 
     // todo, tidy this
+    let vlanAllocated = false;
     Array.from([...busToIed.keys(), 'NOBUSES']).forEach(busName => {
       selectedControlElements
         .filter(ctrl => {
@@ -1022,7 +1046,6 @@ export default class TPMulticastNaming extends LitElement {
 
             if (vlanId) {
               // update the vlan
-              // console.log('Existing VLAN:', vlanId);
               edits.push(
                 ...updateTextContent(
                   addr.querySelector('Address > P[type="VLAN-ID"]'),
@@ -1048,7 +1071,7 @@ export default class TPMulticastNaming extends LitElement {
                 };
 
                 writeVlan(this.doc, vlan, this);
-
+                vlanAllocated = true;
                 // TODO: Parameterise 3E7.
                 edits.push(
                   ...updateTextContent(
@@ -1062,6 +1085,24 @@ export default class TPMulticastNaming extends LitElement {
           }
         });
     });
+
+    if (vlanAllocated) {
+      const vlanContainer = this.doc.querySelector(
+        'Private[type="Transpower-VLAN-Allocation"]'
+      );
+
+      if (vlanContainer) {
+        edits.push({
+          element: vlanContainer,
+          attributes: {
+            updated: {
+              value: getCurrentDateTimeWithTimeZone(),
+              namespaceURI: TPNS,
+            },
+          },
+        });
+      }
+    }
 
     if (edits) {
       this.dispatchEvent(newEditEvent(edits));
@@ -1230,6 +1271,16 @@ export default class TPMulticastNaming extends LitElement {
             }}
           >
           </mwc-button>
+          <mwc-button
+            outlined
+            icon="sync_alt"
+            class="spaced-button"
+            label="Transfer VLAN Allocation To File"
+            @click=${() => {
+              this.vlanListUI.show();
+            }}
+          >
+          </mwc-button>
           <!-- TODO: Feature to add network-data extension in here -->
         </div>
         <mwc-button
@@ -1300,10 +1351,18 @@ export default class TPMulticastNaming extends LitElement {
 
   // eslint-disable-next-line class-methods-use-this
   renderVlan(vlan: Vlan, type: string): TemplateResult {
-    return html`<mwc-list-item twoline value="${type}"
-      >${vlan.serviceName} -
+    return html`<mwc-list-item
+      twoline
+      data-serviceName="${vlan.serviceName}"
+      data-serviceType="${vlan.serviceType}"
+      data-useCase="${vlan.useCase}"
+      data-prot1Id="${vlan.prot1Id}"
+      data-prot2Id="${vlan.prot2Id}"
+      data-busName="${vlan.busName ? vlan.busName : ''}"
+      value="${type}"
+      >${vlan.serviceName}
       ${vlan.serviceType}${vlan.busName && vlan.busName !== ''
-        ? ` (${vlan.busName})`
+        ? `- (${vlan.busName})`
         : ''}<span slot="secondary"
         >Prot1: ${displayVlan(vlan.prot1Id)} Prot2:
         ${displayVlan(vlan.prot2Id)}</span
@@ -1320,9 +1379,14 @@ export default class TPMulticastNaming extends LitElement {
       return vlan1Desc.localeCompare(vlan2Desc);
     };
 
+    const updated = this.doc
+      .querySelector('Private[type="Transpower-VLAN-Allocation"]')
+      ?.getAttributeNS(TPNS, 'updated');
+
     return html`<mwc-dialog id="vlanList" heading="VLAN List">
-      <oscd-filtered-list
-        ><h3>Station VLANs</h3>
+      <oscd-filtered-list>
+        <p>Last updated: <em>${updated}</em></p>
+        <h3>Station VLANs</h3>
         ${stationVlans
           ? stationVlans
               .sort(vlanCompare)
