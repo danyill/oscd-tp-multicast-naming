@@ -48,12 +48,6 @@ type Vlan = {
 /**
  * @param doc - project xml document
  * @param serviceType - SampledValueControl (SMV) or GSEControl (GSE)
- * @returns a function generating increasing unused `MAC-Address` within `doc` on subsequent invocations
- */
-export declare function macAddressGenerator(doc: XMLDocument, serviceType: 'SMV' | 'GSE', protectionType: '1' | '2', ignoreMACs: string[]): () => string;
-/**
- * @param doc - project xml document
- * @param serviceType - SampledValueControl (SMV) or GSEControl (GSE)
  * @param type - whether the GOOSE is a Trip GOOSE resulting in different APPID range - default false
  * @returns a function generating increasing unused `APPID` within `doc` on subsequent invocations
  */

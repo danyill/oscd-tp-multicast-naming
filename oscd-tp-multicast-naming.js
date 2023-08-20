@@ -42041,6 +42041,24 @@ function getBusConnections(doc) {
     });
     return bcs;
 }
+function getCurrentDateTimeWithTimeZone() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const timeZoneOffset = now.getTimezoneOffset();
+    const timeZoneHours = Math.abs(Math.floor(timeZoneOffset / 60))
+        .toString()
+        .padStart(2, '0');
+    const timeZoneMinutes = (Math.abs(timeZoneOffset) % 60)
+        .toString()
+        .padStart(2, '0');
+    const timeZoneSign = timeZoneOffset < 0 ? '+' : '-';
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} ${timeZoneSign}${timeZoneHours}:${timeZoneMinutes}`;
+}
 class TPMulticastNaming extends s$2 {
     constructor() {
         super(...arguments);
@@ -42421,6 +42439,7 @@ class TPMulticastNaming extends s$2 {
             }
         });
         // todo, tidy this
+        let vlanAllocated = false;
         Array.from([...busToIed.keys(), 'NOBUSES']).forEach(busName => {
             selectedControlElements
                 .filter(ctrl => {
@@ -42503,7 +42522,6 @@ class TPMulticastNaming extends s$2 {
                         : existingVlan === null || existingVlan === void 0 ? void 0 : existingVlan.prot2Id;
                     if (vlanId) {
                         // update the vlan
-                        // console.log('Existing VLAN:', vlanId);
                         edits.push(...updateTextContent(addr.querySelector('Address > P[type="VLAN-ID"]'), vlanId));
                     }
                     else {
@@ -42521,6 +42539,7 @@ class TPMulticastNaming extends s$2 {
                                 ...(busName !== 'NOBUSES' && { busName }),
                             };
                             writeVlan(this.doc, vlan, this);
+                            vlanAllocated = true;
                             // TODO: Parameterise 3E7.
                             edits.push(...updateTextContent(addr.querySelector('Address > P[type="VLAN-ID"]'), chosenVlanId !== null && chosenVlanId !== void 0 ? chosenVlanId : '3E7'));
                             // console.log('New VLAN:', vlan);
@@ -42529,6 +42548,20 @@ class TPMulticastNaming extends s$2 {
                 }
             });
         });
+        if (vlanAllocated) {
+            const vlanContainer = this.doc.querySelector('Private[type="Transpower-VLAN-Allocation"]');
+            if (vlanContainer) {
+                edits.push({
+                    element: vlanContainer,
+                    attributes: {
+                        updated: {
+                            value: getCurrentDateTimeWithTimeZone(),
+                            namespaceURI: TPNS,
+                        },
+                    },
+                });
+            }
+        }
         if (edits) {
             this.dispatchEvent(newEditEvent(edits));
             edits = [];
@@ -42654,6 +42687,16 @@ class TPMulticastNaming extends s$2 {
         }}
           >
           </mwc-button>
+          <mwc-button
+            outlined
+            icon="sync_alt"
+            class="spaced-button"
+            label="Transfer VLAN Allocation To File"
+            @click=${() => {
+            this.vlanListUI.show();
+        }}
+          >
+          </mwc-button>
           <!-- TODO: Feature to add network-data extension in here -->
         </div>
         <mwc-button
@@ -42704,10 +42747,18 @@ class TPMulticastNaming extends s$2 {
     }
     // eslint-disable-next-line class-methods-use-this
     renderVlan(vlan, type) {
-        return x `<mwc-list-item twoline value="${type}"
-      >${vlan.serviceName} -
+        return x `<mwc-list-item
+      twoline
+      data-serviceName="${vlan.serviceName}"
+      data-serviceType="${vlan.serviceType}"
+      data-useCase="${vlan.useCase}"
+      data-prot1Id="${vlan.prot1Id}"
+      data-prot2Id="${vlan.prot2Id}"
+      data-busName="${vlan.busName ? vlan.busName : ''}"
+      value="${type}"
+      >${vlan.serviceName}
       ${vlan.serviceType}${vlan.busName && vlan.busName !== ''
-            ? ` (${vlan.busName})`
+            ? `- (${vlan.busName})`
             : ''}<span slot="secondary"
         >Prot1: ${displayVlan(vlan.prot1Id)} Prot2:
         ${displayVlan(vlan.prot2Id)}</span
@@ -42715,15 +42766,19 @@ class TPMulticastNaming extends s$2 {
     >`;
     }
     renderVlanList() {
+        var _a;
         const { stationVlans, busVlans } = getAllocatedVlans(this.doc);
         const vlanCompare = (vlan1, vlan2) => {
             const vlan1Desc = `${vlan1.busName} ${vlan1.serviceName}`;
             const vlan2Desc = `${vlan2.busName} ${vlan2.serviceName}`;
             return vlan1Desc.localeCompare(vlan2Desc);
         };
+        const updated = (_a = this.doc
+            .querySelector('Private[type="Transpower-VLAN-Allocation"]')) === null || _a === void 0 ? void 0 : _a.getAttributeNS(TPNS, 'updated');
         return x `<mwc-dialog id="vlanList" heading="VLAN List">
-      <oscd-filtered-list
-        ><h3>Station VLANs</h3>
+      <oscd-filtered-list>
+        <p>Last updated: <em>${updated}</em></p>
+        <h3>Station VLANs</h3>
         ${stationVlans
             ? stationVlans
                 .sort(vlanCompare)
@@ -42904,5 +42959,5 @@ registerStyles('vaadin-grid', i$5 `
     }
   `);
 
-export { appIdGenerator, TPMulticastNaming as default, macAddressGenerator, vlanIdRangeGenerator };
+export { appIdGenerator, TPMulticastNaming as default, vlanIdRangeGenerator };
 //# sourceMappingURL=oscd-tp-multicast-naming.js.map
