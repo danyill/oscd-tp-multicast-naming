@@ -26,7 +26,7 @@ import { registerStyles } from '@vaadin/vaadin-themable-mixin/register-styles.js
 
 import type { Button } from '@material/mwc-button';
 import type { Dialog } from '@material/mwc-dialog';
-import type { List } from '@material/mwc-list';
+import type { List, MultiSelectedEvent } from '@material/mwc-list';
 import type { ListItemBase } from '@material/mwc-list/mwc-list-item-base.js';
 import type { Menu } from '@material/mwc-menu';
 import type { Grid, GridSelectedItemsChangedEvent } from '@vaadin/grid';
@@ -514,6 +514,9 @@ export default class TPMulticastNaming extends LitElement {
   @property({ attribute: false })
   selectedBus: string = '';
 
+  @property({ attribute: false })
+  selectedVlansForRemoval: number = 0;
+
   @query('#grid')
   gridUI!: Grid;
 
@@ -588,7 +591,7 @@ export default class TPMulticastNaming extends LitElement {
           }}
         ></mwc-checkbox
       ></mwc-formfield>
-      <mwc-formfield label="Show Missing Addresses" alignEnd
+      <mwc-formfield label="Hide Unmatched Control Blocks" alignEnd
         ><mwc-checkbox
           ?checked=${this.showMissingAddresses}
           @change=${() => {
@@ -1553,7 +1556,15 @@ export default class TPMulticastNaming extends LitElement {
       ?.getAttributeNS(TPNS, 'updated');
 
     return html`<mwc-dialog id="vlanList" heading="VLAN List">
-      <oscd-filtered-list id="removableVlanList" multi>
+      <oscd-filtered-list
+        id="removableVlanList"
+        multi
+        @selected=${(ev: MultiSelectedEvent) => {
+          this.selectedVlansForRemoval =
+            (<ListItemBase[]>(<unknown>(<List>ev.target).selected))!.length ??
+            0;
+        }}
+      >
         <p>Last updated: <em>${updated ?? 'No VLAN data present'}</em></p>
         <h3>Station VLANs</h3>
         ${stationVlans
@@ -1574,8 +1585,10 @@ export default class TPMulticastNaming extends LitElement {
       >
       <mwc-button
         dialogAction="removeVlans"
+        id="removeVlansButtons"
         slot="secondaryAction"
         icon="delete"
+        ?disabled=${this.selectedVlansForRemoval === 0}
         @click="${() => {
           this.removeVlans();
           this.deselectVlanItems();
