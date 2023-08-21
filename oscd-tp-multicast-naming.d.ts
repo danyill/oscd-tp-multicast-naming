@@ -76,6 +76,7 @@ export default class TPMulticastNaming extends LitElement {
     resultMessageText: string;
     showMissingAddresses: boolean;
     selectedBus: string;
+    selectedVlansForRemoval: number;
     gridUI: Grid;
     vlanListUI: Dialog;
     busConnections: Map<string, string>;

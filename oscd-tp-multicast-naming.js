@@ -42615,6 +42615,7 @@ class TPMulticastNaming extends s$2 {
         this.resultMessageText = '';
         this.showMissingAddresses = true;
         this.selectedBus = '';
+        this.selectedVlansForRemoval = 0;
         // TODO: Refactor for performance.
         this.busConnections = new Map();
         this.commElements = [];
@@ -42663,7 +42664,7 @@ class TPMulticastNaming extends s$2 {
         }}
         ></mwc-checkbox
       ></mwc-formfield>
-      <mwc-formfield label="Show Missing Addresses" alignEnd
+      <mwc-formfield label="Hide Unmatched Control Blocks" alignEnd
         ><mwc-checkbox
           ?checked=${this.showMissingAddresses}
           @change=${() => {
@@ -43423,7 +43424,15 @@ class TPMulticastNaming extends s$2 {
         const updated = (_a = this.doc
             .querySelector('Private[type="Transpower-VLAN-Allocation"]')) === null || _a === void 0 ? void 0 : _a.getAttributeNS(TPNS, 'updated');
         return x `<mwc-dialog id="vlanList" heading="VLAN List">
-      <oscd-filtered-list id="removableVlanList" multi>
+      <oscd-filtered-list
+        id="removableVlanList"
+        multi
+        @selected=${(ev) => {
+            var _a;
+            this.selectedVlansForRemoval =
+                (_a = ev.target.selected.length) !== null && _a !== void 0 ? _a : 0;
+        }}
+      >
         <p>Last updated: <em>${updated !== null && updated !== void 0 ? updated : 'No VLAN data present'}</em></p>
         <h3>Station VLANs</h3>
         ${stationVlans
@@ -43444,8 +43453,10 @@ class TPMulticastNaming extends s$2 {
       >
       <mwc-button
         dialogAction="removeVlans"
+        id="removeVlansButtons"
         slot="secondaryAction"
         icon="delete"
+        ?disabled=${this.selectedVlansForRemoval === 0}
         @click="${() => {
             this.removeVlans();
             this.deselectVlanItems();
@@ -43609,6 +43620,9 @@ __decorate([
 __decorate([
     n$3({ attribute: false })
 ], TPMulticastNaming.prototype, "selectedBus", void 0);
+__decorate([
+    n$3({ attribute: false })
+], TPMulticastNaming.prototype, "selectedVlansForRemoval", void 0);
 __decorate([
     i$2('#grid')
 ], TPMulticastNaming.prototype, "gridUI", void 0);
