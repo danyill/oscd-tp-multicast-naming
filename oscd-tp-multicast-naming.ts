@@ -1048,10 +1048,10 @@ export default class TPMulticastNaming extends LitElement {
             useCase = 'Bus';
           } else if (controlName.startsWith('SPSStn')) {
             serviceName = 'SPSStn';
-            useCase = 'Bus';
+            useCase = 'Station';
           } else if (controlName.startsWith('CBFailInit')) {
             serviceName = 'CBFailInit';
-            useCase = 'Bus';
+            useCase = 'Station';
           } else if (serviceType === 'SMV' && !smvIDFunction) {
             serviceName = 'BusSV';
             useCase = 'Bus';
@@ -1174,8 +1174,8 @@ export default class TPMulticastNaming extends LitElement {
 
         if (minTime) {
           if (
-            element.getAttribute('cbName')?.toUpperCase().includes('CTL') ||
-            element.getAttribute('cbName')?.toUpperCase().includes('TRIP')
+            element.getAttribute('cbName')?.toUpperCase().startsWith('CTL') ||
+            element.getAttribute('cbName')?.toUpperCase().startsWith('TRIP')
           ) {
             edits.push(...updateTextContent(minTime, '4'));
           } else {
@@ -1194,8 +1194,8 @@ export default class TPMulticastNaming extends LitElement {
       if (
         element.tagName === 'GSE' &&
         !(
-          element.getAttribute('cbName')?.toUpperCase().includes('CTL') ||
-          element.getAttribute('cbName')?.toUpperCase().includes('TRIP')
+          element.getAttribute('cbName')?.toUpperCase().startsWith('CTL') ||
+          element.getAttribute('cbName')?.toUpperCase().startsWith('TRIP')
         )
       ) {
         protType = 'N';
@@ -1509,11 +1509,11 @@ export default class TPMulticastNaming extends LitElement {
     ></mwc-icon-button>`;
   }
 
+  // TODO remove checked/selected for mwc component.
   // eslint-disable-next-line class-methods-use-this
   renderVlan(vlan: Vlan, type: string): TemplateResult {
     return html`<mwc-check-list-item
       twoline
-      ?selected=${false}
       data-serviceName="${vlan.serviceName}"
       data-serviceType="${vlan.serviceType}"
       data-useCase="${vlan.useCase}"
@@ -1529,6 +1529,13 @@ export default class TPMulticastNaming extends LitElement {
         ${displayVlan(vlan.prot2Id)}</span
       ></mwc-check-list-item
     >`;
+  }
+
+  deselectVlanItems(): void {
+    (<ListItemBase[]>this.removableVlanListUI.selected).forEach(item => {
+      // eslint-disable-next-line no-param-reassign
+      item.selected = false;
+    });
   }
 
   renderVlanList(): TemplateResult {
@@ -1558,12 +1565,20 @@ export default class TPMulticastNaming extends LitElement {
           ? busVlans.sort(vlanCompare).map(vlan => this.renderVlan(vlan, 'Bus'))
           : html`<mwc-list-item>No VLANs present</mwc-list-item>`}
       </oscd-filtered-list>
-      <mwc-button dialogAction="ok" slot="primaryAction">OK</mwc-button>
+      <mwc-button
+        dialogAction="ok"
+        slot="primaryAction"
+        @click="${() => this.deselectVlanItems()}"
+        >OK</mwc-button
+      >
       <mwc-button
         dialogAction="removeVlans"
         slot="secondaryAction"
         icon="delete"
-        @click=${() => this.removeVlans()}
+        @click="${() => {
+          this.removeVlans();
+          this.deselectVlanItems();
+        }}"
       >
         Remove VLAN Allocation
       </mwc-button>
