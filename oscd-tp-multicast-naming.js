@@ -43320,6 +43320,7 @@ class TPMulticastNaming extends s$2 {
             icon="lan"
             class="spaced-button"
             label="Show Used VLANs (${this.getUsedVlansCount()})"
+            ?disabled=${this.getUsedVlansCount() === 0}
             @click=${() => {
             this.vlanListUI.show();
         }}
