@@ -100,6 +100,7 @@ export default class TPMulticastNaming extends LitElement {
     renderButtons(): TemplateResult;
     renderDownloadButton(): TemplateResult;
     renderVlan(vlan: Vlan, type: string): TemplateResult;
+    deselectVlanItems(): void;
     renderVlanList(): TemplateResult;
     renderFileInput(): TemplateResult;
     renderResultMessage(): TemplateResult;

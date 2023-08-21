@@ -43046,11 +43046,11 @@ class TPMulticastNaming extends s$2 {
                 }
                 else if (controlName.startsWith('SPSStn')) {
                     serviceName = 'SPSStn';
-                    useCase = 'Bus';
+                    useCase = 'Station';
                 }
                 else if (controlName.startsWith('CBFailInit')) {
                     serviceName = 'CBFailInit';
-                    useCase = 'Bus';
+                    useCase = 'Station';
                 }
                 else if (serviceType === 'SMV' && !smvIDFunction) {
                     serviceName = 'BusSV';
@@ -43134,8 +43134,8 @@ class TPMulticastNaming extends s$2 {
                 const minTime = element.querySelector('MinTime');
                 const maxTime = element.querySelector('MaxTime');
                 if (minTime) {
-                    if (((_a = element.getAttribute('cbName')) === null || _a === void 0 ? void 0 : _a.toUpperCase().includes('CTL')) ||
-                        ((_b = element.getAttribute('cbName')) === null || _b === void 0 ? void 0 : _b.toUpperCase().includes('TRIP'))) {
+                    if (((_a = element.getAttribute('cbName')) === null || _a === void 0 ? void 0 : _a.toUpperCase().startsWith('CTL')) ||
+                        ((_b = element.getAttribute('cbName')) === null || _b === void 0 ? void 0 : _b.toUpperCase().startsWith('TRIP'))) {
                         edits.push(...updateTextContent(minTime, '4'));
                     }
                     else {
@@ -43150,8 +43150,8 @@ class TPMulticastNaming extends s$2 {
             let protType = protNum;
             // if it is not protection it is in a different range
             if (element.tagName === 'GSE' &&
-                !(((_c = element.getAttribute('cbName')) === null || _c === void 0 ? void 0 : _c.toUpperCase().includes('CTL')) ||
-                    ((_d = element.getAttribute('cbName')) === null || _d === void 0 ? void 0 : _d.toUpperCase().includes('TRIP')))) {
+                !(((_c = element.getAttribute('cbName')) === null || _c === void 0 ? void 0 : _c.toUpperCase().startsWith('CTL')) ||
+                    ((_d = element.getAttribute('cbName')) === null || _d === void 0 ? void 0 : _d.toUpperCase().startsWith('TRIP')))) {
                 protType = 'N';
             }
             const newAppId = nextAppId[element.tagName][protType]();
@@ -43384,11 +43384,11 @@ class TPMulticastNaming extends s$2 {
       @click="${() => this.downloadItems()}"
     ></mwc-icon-button>`;
     }
+    // TODO remove checked/selected for mwc component.
     // eslint-disable-next-line class-methods-use-this
     renderVlan(vlan, type) {
         return x `<mwc-check-list-item
       twoline
-      ?selected=${false}
       data-serviceName="${vlan.serviceName}"
       data-serviceType="${vlan.serviceType}"
       data-useCase="${vlan.useCase}"
@@ -43404,6 +43404,12 @@ class TPMulticastNaming extends s$2 {
         ${displayVlan(vlan.prot2Id)}</span
       ></mwc-check-list-item
     >`;
+    }
+    deselectVlanItems() {
+        this.removableVlanListUI.selected.forEach(item => {
+            // eslint-disable-next-line no-param-reassign
+            item.selected = false;
+        });
     }
     renderVlanList() {
         var _a;
@@ -43429,12 +43435,20 @@ class TPMulticastNaming extends s$2 {
             ? busVlans.sort(vlanCompare).map(vlan => this.renderVlan(vlan, 'Bus'))
             : x `<mwc-list-item>No VLANs present</mwc-list-item>`}
       </oscd-filtered-list>
-      <mwc-button dialogAction="ok" slot="primaryAction">OK</mwc-button>
+      <mwc-button
+        dialogAction="ok"
+        slot="primaryAction"
+        @click="${() => this.deselectVlanItems()}"
+        >OK</mwc-button
+      >
       <mwc-button
         dialogAction="removeVlans"
         slot="secondaryAction"
         icon="delete"
-        @click=${() => this.removeVlans()}
+        @click="${() => {
+            this.removeVlans();
+            this.deselectVlanItems();
+        }}"
       >
         Remove VLAN Allocation
       </mwc-button>
