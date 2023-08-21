@@ -8,7 +8,9 @@ import '@material/mwc-dialog';
 import '@material/mwc-formfield';
 import '@material/mwc-icon-button';
 import '@material/mwc-list/mwc-list-item';
+import '@material/mwc-list/mwc-check-list-item';
 import '@material/mwc-menu';
+import '@material/mwc-snackbar';
 
 import '@openscd/oscd-filtered-list';
 
@@ -28,14 +30,12 @@ import type { List } from '@material/mwc-list';
 import type { ListItemBase } from '@material/mwc-list/mwc-list-item-base.js';
 import type { Menu } from '@material/mwc-menu';
 import type { Grid, GridSelectedItemsChangedEvent } from '@vaadin/grid';
+import type { Snackbar } from '@material/mwc-snackbar';
 
 import { Edit, newEditEvent } from '@openscd/open-scd-core';
 
 import { identity } from './foundation/identities/identity.js';
 import { selector } from './foundation/identities/selector.js';
-
-// import { gooseIcon, smvIcon } from './foundation/icons/icons.js';
-// import { compareNames } from './src/foundation/foundation.js';
 
 type MacObject = {
   [key: string]: {
@@ -462,6 +462,20 @@ function getCurrentDateTimeWithTimeZone(): string {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} ${timeZoneSign}${timeZoneHours}:${timeZoneMinutes}`;
 }
 
+function formatXml(xml: string, tab?: string) {
+  let formatted = '';
+  let indent = '';
+
+  // eslint-disable-next-line no-param-reassign
+  if (!tab) tab = '\t';
+  xml.split(/>\s*</).forEach(node => {
+    if (node.match(/^\/\w/)) indent = indent.substring(tab!.length);
+    formatted += `${indent}<${node}>\r\n`;
+    if (node.match(/^<?\w[^>]*[^/]$/)) indent += tab;
+  });
+  return formatted.substring(1, formatted.length - 3);
+}
+
 export default class TPMulticastNaming extends LitElement {
   /** The document being edited as provided to plugins by [[`OpenSCD`]]. */
   @property({ attribute: false })
@@ -492,6 +506,9 @@ export default class TPMulticastNaming extends LitElement {
   protection2 = true;
 
   @property({ attribute: false })
+  resultMessageText = '';
+
+  @property({ attribute: false })
   showMissingAddresses = true;
 
   @property({ attribute: false })
@@ -505,9 +522,7 @@ export default class TPMulticastNaming extends LitElement {
 
   // TODO: Refactor for performance.
   @property({ type: Map })
-  get busConnections(): Map<string, string> {
-    return getBusConnections(this.doc);
-  }
+  busConnections: Map<string, string> = new Map();
 
   @property({ type: Array })
   commElements: Element[] | [] = [];
@@ -520,6 +535,14 @@ export default class TPMulticastNaming extends LitElement {
 
   @query('#busConnectionMenu')
   busConnectionMenuUI?: Menu;
+
+  @query('#file-input') fileInputUI!: HTMLInputElement;
+
+  @query('#resultMessage')
+  resultMessageUI!: Snackbar;
+
+  @query('#removableVlanList')
+  removableVlanListUI!: List;
 
   renderFilterButtons(): TemplateResult {
     return html`<div id="filterSelector">
@@ -576,32 +599,40 @@ export default class TPMulticastNaming extends LitElement {
         ></mwc-checkbox
       ></mwc-formfield>
       <mwc-formfield
-        id="busConnectionMenuButton"
+        id="busConnectionField"
         label="${this.selectedBus === '' ? 'Select a Bus' : this.selectedBus}"
         ?disabled=${Array.from(this.busConnections.keys()).length === 0}
         alignEnd
         ><mwc-icon-button
           icon="expand_more"
+          id="busConnectionMenuButton"
           ?disabled=${Array.from(this.busConnections.keys()).length === 0}
           @click=${() => {
             if (!(Array.from(this.busConnections.keys()).length === 0))
               this.busConnectionMenuUI!.show();
           }}
         ></mwc-icon-button>
-      </mwc-formfield>
-      <mwc-menu id="busConnectionMenu" corner="BOTTOM_RIGHT" menuCorner="END">
-        ${[...new Set(this.busConnections.values())].map(
-          busName => html`<mwc-list-item
+        <mwc-menu id="busConnectionMenu" corner="BOTTOM_RIGHT" menuCorner="END">
+          <mwc-list-item
             graphic="icon"
             left
-            ?selected=${this.selectedBus === busName}
-            value="${busName}"
-          >
-            <span>${busName}</span>
-            <mwc-icon slot="graphic">check</mwc-icon>
-          </mwc-list-item> `
-        )}
-      </mwc-menu>
+            ?selected=${this.selectedBus === ''}
+            value="None"
+            ><span>None</span>
+          </mwc-list-item>
+          ${[...new Set(this.busConnections.values())].map(
+            busName => html`<mwc-list-item
+              graphic="icon"
+              left
+              ?selected=${this.selectedBus === busName}
+              value="${busName}"
+            >
+              <span>${busName}</span>
+              <mwc-icon slot="graphic">check</mwc-icon>
+            </mwc-list-item>`
+          )}
+        </mwc-menu>
+      </mwc-formfield>
     </div>`;
   }
 
@@ -690,6 +721,7 @@ export default class TPMulticastNaming extends LitElement {
     // TODO: Be able to detect the same document loaded twice, currently lack a way to check for this
     // https://github.com/openscd/open-scd-core/issues/92
     if (changedProperties.has('doc')) {
+      this.busConnections = getBusConnections(this.doc);
       this.gridItems = [];
       this.selectedItems = [];
       this.updateContent();
@@ -701,13 +733,13 @@ export default class TPMulticastNaming extends LitElement {
       );
 
       this.busConnectionMenuUI!.addEventListener('closed', () => {
-        const busListItem =
-          (<ListItemBase>this.busConnectionMenuUI?.selected)?.value ?? '';
-        if (this.selectedBus === busListItem) {
-          this.selectedBus = '';
-        } else {
-          this.selectedBus = busListItem;
-        }
+        const busListItem = (<ListItemBase>this.busConnectionMenuUI?.selected)
+          ?.value;
+
+        if (!busListItem) return;
+
+        this.selectedBus =
+          !busListItem || busListItem === 'None' ? '' : busListItem;
 
         this.gridItems = [];
         this.updateContent();
@@ -715,10 +747,15 @@ export default class TPMulticastNaming extends LitElement {
     }
   }
 
+  protected firstUpdated(): void {
+    this.busConnections = getBusConnections(this.doc);
+  }
+
   renderSelectionList(): TemplateResult {
     if (!this.doc) return html``;
 
     if (!(this.gridItems.length > 0)) this.updateContent();
+
     // frozen
     return html`
       <vaadin-grid
@@ -913,7 +950,7 @@ export default class TPMulticastNaming extends LitElement {
     // update appId for GSEControl and smvId for SampledValueControls
     selectedControlElements.forEach(control => {
       const type = control.tagName;
-      const iedName = control.closest('IED')!.getAttribute('name');
+      const iedName = control.closest('IED')!.getAttribute('name')!;
 
       if (type === 'GSEControl') {
         const cbName = control.getAttribute('name') ?? 'Unknown';
@@ -926,13 +963,16 @@ export default class TPMulticastNaming extends LitElement {
 
       if (type === 'SampledValueControl') {
         const smvID = control.getAttribute('smvID') ?? 'Unknown';
-        const update = {
-          element: control,
-          attributes: {
-            smvID: `${iedName}${smvID === 'TEMPLATE' ? '' : `/${smvID}`}`,
-          },
-        };
-        edits.push(update);
+        if (!smvID.startsWith(iedName)) {
+          const update = {
+            element: control,
+            attributes: {
+              smvID:
+                smvID === 'TEMPLATE' ? `${iedName}` : `${iedName}/${smvID}`,
+            },
+          };
+          edits.push(update);
+        }
       }
     });
 
@@ -1256,6 +1296,125 @@ export default class TPMulticastNaming extends LitElement {
     return (stationVlans ?? []).length + (busVlans ?? []).length;
   }
 
+  transferVlanAllocation(): void {
+    this.fileInputUI.click();
+  }
+
+  async updateVlanAllocationInFile(event: Event): Promise<void> {
+    const file =
+      (<HTMLInputElement | null>event.target)?.files?.item(0) ?? false;
+    if (!file) return;
+
+    const text = await file.text();
+    const transferDocName = file.name;
+    const transferDoc = new DOMParser().parseFromString(
+      text,
+      'application/xml'
+    );
+
+    // set namespace on header if not present
+    if (!transferDoc.documentElement.hasAttribute('xmlns:etpc'))
+      transferDoc.documentElement.setAttributeNS(
+        'http://www.w3.org/2000/xmlns/',
+        'xmlns:etpc',
+        TPNS
+      );
+
+    const vlanAllocation = this.doc.querySelector(
+      'Private[type="Transpower-VLAN-Allocation"]'
+    );
+
+    const transferCommunication = transferDoc.querySelector('Communication');
+    if (!(vlanAllocation && transferDoc && transferCommunication)) {
+      this.resultMessageText =
+        'VLAN allocation not transferred, no Communication section in file';
+      this.resultMessageUI.show();
+      return;
+    }
+
+    // remove old VLAN allocation
+    const transferVlanAllocation = transferDoc.querySelector(
+      'Private[type="Transpower-VLAN-Allocation"]'
+    );
+    if (transferVlanAllocation) {
+      this.resultMessageText = `Removed existing VLAN allocations in '${transferDocName} and transferred new VLAN allocations.`;
+      transferCommunication.removeChild(transferVlanAllocation);
+    } else {
+      this.resultMessageText = `Transferred VLAN allocations to '${transferDocName}.`;
+    }
+
+    // transfer new VLAN allocation
+    const copyNode = this.doc.importNode(vlanAllocation, true);
+    transferCommunication.insertBefore(
+      copyNode,
+      transferCommunication.firstElementChild
+    );
+
+    // now format and save document
+    let documentAsString = formatXml(
+      new XMLSerializer().serializeToString(transferDoc)
+    );
+
+    // Add XML declaration/prolog if it's been stripped
+    // TODO: This can be removed once the improved OpenSCD core edit API is present
+    documentAsString = documentAsString.startsWith('<?xml')
+      ? documentAsString
+      : `<?xml version="1.0" encoding="UTF-8"?>\n${documentAsString}`;
+
+    const blob = new Blob([documentAsString], {
+      type: 'application/xml',
+    });
+
+    const a = document.createElement('a');
+    // TODO: Improve naming...
+    a.download = transferDocName;
+    a.href = URL.createObjectURL(blob);
+    a.dataset.downloadurl = ['application/xml', a.download, a.href].join(':');
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+    }, 5000);
+
+    this.resultMessageUI.show();
+  }
+
+  removeVlans(): void {
+    if (!this.removableVlanListUI.selected) return;
+
+    const edits: Edit[] = [];
+    const vlanContainer = this.doc.querySelector(
+      'Private[type="Transpower-VLAN-Allocation"]'
+    );
+    const vlans = vlanContainer?.getElementsByTagNameNS(TPNS, 'VLAN');
+
+    if (!vlans) return;
+
+    (<ListItemBase[]>this.removableVlanListUI.selected).forEach(item => {
+      const { servicename, servicetype, usecase, prot1id, prot2id, busname } =
+        item.dataset;
+
+      const removableVlan = Array.from(vlans).filter(
+        element =>
+          element.getAttribute('useCase') === usecase &&
+          element.getAttribute('serviceName') === servicename &&
+          element.getAttribute('serviceType') === servicetype &&
+          element.getAttribute('prot1Id') === prot1id &&
+          element.getAttribute('prot2Id') === prot2id &&
+          (!element.getAttribute('busName') ||
+            element.getAttribute('busName') === busname)
+      );
+      if (removableVlan && removableVlan.length === 1) {
+        edits.push({ node: removableVlan[0] });
+      }
+    });
+    this.dispatchEvent(newEditEvent(edits));
+    this.resultMessageText = `Removed ${edits.length} VLAN allocations`;
+    this.resultMessageUI.show();
+  }
+
   renderButtons(): TemplateResult {
     const sizeSelectedItems = this.selectedItems.length;
     return html`
@@ -1276,8 +1435,9 @@ export default class TPMulticastNaming extends LitElement {
             icon="sync_alt"
             class="spaced-button"
             label="Transfer VLAN Allocation To File"
+            ?disabled=${this.getUsedVlansCount() === 0}
             @click=${() => {
-              this.vlanListUI.show();
+              this.transferVlanAllocation();
             }}
           >
           </mwc-button>
@@ -1329,7 +1489,7 @@ export default class TPMulticastNaming extends LitElement {
             this.selectedItems = [];
 
             this.updateContent();
-            this.gridUI.clearCache();
+            // this.gridUI.clearCache();
           }}
         >
         </mwc-button>
@@ -1351,8 +1511,9 @@ export default class TPMulticastNaming extends LitElement {
 
   // eslint-disable-next-line class-methods-use-this
   renderVlan(vlan: Vlan, type: string): TemplateResult {
-    return html`<mwc-list-item
+    return html`<mwc-check-list-item
       twoline
+      ?selected=${false}
       data-serviceName="${vlan.serviceName}"
       data-serviceType="${vlan.serviceType}"
       data-useCase="${vlan.useCase}"
@@ -1362,11 +1523,11 @@ export default class TPMulticastNaming extends LitElement {
       value="${type}"
       >${vlan.serviceName}
       ${vlan.serviceType}${vlan.busName && vlan.busName !== ''
-        ? `- (${vlan.busName})`
+        ? ` - ${vlan.busName}`
         : ''}<span slot="secondary"
         >Prot1: ${displayVlan(vlan.prot1Id)} Prot2:
         ${displayVlan(vlan.prot2Id)}</span
-      ></mwc-list-item
+      ></mwc-check-list-item
     >`;
   }
 
@@ -1384,8 +1545,8 @@ export default class TPMulticastNaming extends LitElement {
       ?.getAttributeNS(TPNS, 'updated');
 
     return html`<mwc-dialog id="vlanList" heading="VLAN List">
-      <oscd-filtered-list>
-        <p>Last updated: <em>${updated}</em></p>
+      <oscd-filtered-list id="removableVlanList" multi>
+        <p>Last updated: <em>${updated ?? 'No VLAN data present'}</em></p>
         <h3>Station VLANs</h3>
         ${stationVlans
           ? stationVlans
@@ -1397,7 +1558,35 @@ export default class TPMulticastNaming extends LitElement {
           ? busVlans.sort(vlanCompare).map(vlan => this.renderVlan(vlan, 'Bus'))
           : html`<mwc-list-item>No VLANs present</mwc-list-item>`}
       </oscd-filtered-list>
+      <mwc-button dialogAction="ok" slot="primaryAction">OK</mwc-button>
+      <mwc-button
+        dialogAction="removeVlans"
+        slot="secondaryAction"
+        icon="delete"
+        @click=${() => this.removeVlans()}
+      >
+        Remove VLAN Allocation
+      </mwc-button>
     </mwc-dialog>`;
+  }
+
+  renderFileInput(): TemplateResult {
+    return html`<input @click=${(event: MouseEvent) => {
+      // eslint-disable-next-line no-param-reassign
+      (<HTMLInputElement>event.target).value = '';
+    }} @change=${
+      this.updateVlanAllocationInFile
+    } id="file-input" accept=".sed,.scd,.ssd,.iid,.cid,.icd" type="file"></input>`;
+  }
+
+  // eslint-disable-next-line class-methods-use-this
+  renderResultMessage(): TemplateResult {
+    return html`<mwc-snackbar
+      id="resultMessage"
+      leading
+      labelText="${this.resultMessageText}"
+    >
+    </mwc-snackbar>`;
   }
 
   render(): TemplateResult {
@@ -1411,7 +1600,8 @@ export default class TPMulticastNaming extends LitElement {
         </div>
         ${this.renderSelectionList()} ${this.renderButtons()}
       </section>
-      ${this.renderVlanList()}
+      ${this.renderVlanList()} ${this.renderFileInput()}
+      ${this.renderResultMessage()}
     `;
   }
 
@@ -1451,18 +1641,24 @@ export default class TPMulticastNaming extends LitElement {
       line-height: 48px;
     }
 
-    .lighter {
-      font-weight: lighter;
-      color: darkgray;
+    #file-input {
+      width: 0;
+      height: 0;
+      opacity: 0;
     }
 
-    #filterSelector {
+    fileInputUI #filterSelector {
       position: relative;
       max-width: fit-content;
     }
 
     #filterSelector > mwc-formfield {
       padding-right: 20px;
+    }
+
+    .lighter {
+      font-weight: lighter;
+      color: darkgray;
     }
 
     section {
@@ -1474,6 +1670,10 @@ export default class TPMulticastNaming extends LitElement {
       display: flex;
       align-items: center;
       justify-content: space-between;
+    }
+
+    #busConnectionField {
+      position: relative;
     }
 
     /* Hide the icon of unselected menu items that are in a group */
