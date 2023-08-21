@@ -1425,6 +1425,7 @@ export default class TPMulticastNaming extends LitElement {
             icon="lan"
             class="spaced-button"
             label="Show Used VLANs (${this.getUsedVlansCount()})"
+            ?disabled=${this.getUsedVlansCount() === 0}
             @click=${() => {
               this.vlanListUI.show();
             }}
