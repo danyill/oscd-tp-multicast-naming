@@ -41,119 +41,130 @@ Feel free to log issues to request fixes, improvements or new features.
 
 == How it works
 
-=== VLANs allocated per substation
+It allocates Sampled Value and GOOSE communications addressing based on the user selecting items in a table with filtering allow by message type, protectin system and primary system bus.
 
-[cols="1*<.^,2*^.^,1*<.^",options="header,unbreakable"]
+MAC Addresses::
+* The first user-allocated octet is allocated to `00` for Prot1 and `01` for Prot2 for SMV and GSE traffic.
+* MAC addresses are assigned to be unique and up to 255 are allowed.
+
+APP IDs::
++
+--
+For GSE Traffic:
+
+* Prot1 (as defined by a device whose last digit is even) trips (as defined by control block names beginning `Ctl` or `Trip`) begin at `0x8001` and go to `0x8fff`
+* Prot2 (as defined by a device whose last digit is odd ) trips begin at `0x9001` and go to `0x9fff`
+* Non-tripping services are allocated between `0x0001` and `0x4fff`
+
+For SMV Traffic:
+
+* Prot1 begins at `0x5000` and go to `0x5fff`
+* Prot2 begins at `0x6000` and go to `0x6fff`
+--
+
+`appID` or `smvID`::
+* For GOOSE traffic, this always the IED name a forward slash and the control block name
+* For SV traffic, if the name is "TEMPLATE" it is substituted for the IED name.
+* Otherwise, the `smvID` is generated with the IED name, a forward slash and the value of `smvID`.
+
+VLAN Priority::
+* All GOOSE traffic is Priority 4
+* All SMV traffic is Priority 5
+
+GSE `MinTime` and `MaxTime`::
+* All tripping messages (as defined by control block names beginning `Ctl` or `Trip`) have a `MinTime` of 4 ms and a `MaxTime` of 1000 ms.
+* All other messages have a `MinTime` of 100 ms and a `MaxTime` of 1000 ms.
+
+VLAN ID::
+
+* VLANs are allocated on the basis of the control block name for GSE and the `smvID` for SMV (after the trailing `/`)
+* They are allocated as pairs for Prot1 and Prot2 at the same time. Prot1 and Prot2 are identified by the IED name ending in an even and odd number respectively.
+* A VLAN is either substation wide or on a per primary system bus basis.
+* For a Substation:
++
+[cols="1*<.^,1*<.^,2*^.^,1*<.^",options="header,unbreakable"]
 |===
 |Service Type
+|Service Names
 |Prot1 VLAN Range
 |Prot2 VLAN Range
 |Comment
 
 |P1 to P2 GOOSE
+|?
 2+|1050-1099
-<.^|e.g. ARecl, ESW indication on GHA LV Incomers
+<.^|Nothing as yet...
 
 |GOOSE
+|`EveTrig`, `ILock`, `CBFailInit`, `SPSBus`
 |1000-1049
 |2000-2049
-|e.g. Interlocking, SPS schemes across a bus
+|e.g. Interlocking, SPS schemes across a bus, event triggering, bus protection CB Fail initiate
 
 |SV
+|`VTSelStn`
 |1050-1099
 |2050-2099
 |e.g. VT Selection, Synch Check and Deadline Charge, Remote Synch
 |===
 
-=== VLANs allocated per bus
-
-[cols="1*<.^,2*^.^,1*<.^",options="header,unbreakable"]
+* For a Bus:
++
+[cols="1*<.^,1*<.^,2*^.^,1*<.^",options="header,unbreakable"]
 |===
 |Service Type
+|Service Name
 |Prot1 VLAN Range
 |Prot2 VLAN Range
 |Comment
 
 |P1 to P2 GOOSE
+`ARecl`, `SwgrPos`, `SPSBus`
 2+|50-99
-<.^|ARecl Initiate, ARecl Block, Cross tripping if required, Event triggering
+<.^|ARecl Initiate, ARecl Block, Cross tripping if required, Event triggering, ESW indication on GHA LV Incomers
 
 |(Bus and Bay Level) GOOSE
+|`Ctl`, `Ind`, `Test`
 |100-149
 |200-249
 |Bus protection, SPS schemes within a bus
 
 |(Bus and Bay Level) SV
+|Just the IED name, `VTSelBus`
 |150-199
 |250-299
 |Bay protections
 
 |===
 
-=== Rules
-
-* Protection 1 or 2 is identified by:
-** Protection 1 has an odd numbered last digit
-** Protection 2 has an even numbered last digit
-
-* Service Types, once allocated to VLANs cannot be unallocated.
-* No more granular allocation other than included above is permissible to avoid having to have allocation tables.
-* We won't store port allocations in the SCL, that will come from networking team or the IPAM/DCIM tool
-
-* Identification of Service Types will be done based on publishing information as follows:
-
-** On the control block name, e.g. control blocks beginning with the following have the indicated allocations:
-*** GOOSE `Ind`, `Ctl` and `Test` is within the bus
-*** GOOSE `ILock` is within the station
-*** GOOSE `ARecl` is within the station
-*** GOOSE `EveTrig` is within the station
-*** GOOSE `SPSBus` is within the bus
-*** GOOSE `SPSStn` is within the station
-*** GOOSE `SwgrPos` is within the bus between Prot 1 and Prot 2
-*** GOOSE `CBFailInit` is OC(CBFail) to the other bus in a bus or breaker and a half protection scheme and is within the station
-
-** On the `smvID` parameter in the control block (as e.g. IEC 61869-9 governs the `SampledValueControl` control block name and the `DataSet` name). This has to be unique substation wide, so the suffix of this value is used to classify the traffic:
-*** `BusSV` -- No identified suffix -- Belongs to the bus
-*** `VTSelBus` -- Belongs to the bus
-*** `VTSelStn` -- Belongs to the station
-
-* Buses are determine by a Function named `CommAddressing` under a Bay in the `Substation` section with a `name` which begins `Bus` followed by an underscore and the bus name.
-* The bus name is the definition of "bus" in the above.
-* Within the function, there will be a single `LPHD` for each device.
-* This will be for Generation 1 substations (at least for this initial prototype) 
+* Buses are determine by a Function named `BusPhysConnection` under a Bay in the `Substation` section with a `name` which begins `Bus` followed by an underscore and the bus name.
+** The bus `name` attribute is the definition of "bus" in the above.
+* Within the function, there will be a single `LPHD` for each device (although any logical node reference will do)
+* This will be for Generation 1 substations (at least for this initial design). 
 +
 [source,xml]
 ----
-<Bay xmlns="http://www.iec.ch/61850/2003/SCL" name="Bus_A">
+<Bay name="BusA">
 	<ConnectivityNode name="CN_BusA" pathName="XAT/V220/BusA/CN_BusA"/>
-	<Function name="CommAddressing">
-		<LNode iedName="SOM_102_P2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="0"/>
-		<LNode iedName="SOM_102_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
+	<Function name="BusPhysConnection">
 		<LNode iedName="XAT_232_P2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="0"/>
 		<LNode iedName="XAT_278_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
 		<LNode iedName="XAT_T1_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
-		<LNode iedName="XAT_BusA_P2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
-		<LNode iedName="XAT_T1_P2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="0"/>
+		<LNode iedName="XAT_C3_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
+		<LNode iedName="XAT_2202_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
+		<LNode iedName="XAT_252_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
+		<LNode iedName="XAT_242_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
 		<LNode iedName="XAT_232_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
 		<LNode iedName="XAT_220_M2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
+		<LNode iedName="XAT_T1_P2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="0"/>
+		<LNode iedName="XAT_C3_P2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="0"/>
+		<LNode iedName="XAT_BusA_P2" ldInst="Application" prefix="" lnClass="LPHD" lnInst="1"/>
 	</Function>
 </Bay>
 ----
 
-* We need to be able to show the Bay and Bus VLANs (but read-only)
-
-Currently we have a menu plugin which exports communication information `ExportMulticastAddresses.ts`
-This could be enhanced to use our custom name space to show subscribing and publishing, grouping by bus and including the `smvId`.
-
-We will augment the existing `TP Multicast Naming` plugin to do these functions.
-This already provides quite a granular interface (GOOSE, SV, Prot1, Prot2) and we will enhance this to allow a view of Buses.
-
-This plugin will be used by the user manually selecting any new control blocks which need to be addressed.
-We will rely on diff functionality to show the differences (yet to be developed)
-
-// What is the XAT_T1_P2 > E mean??
-// Should we also be doing IP addressing? If not, why not?
-// Then our export should include IP addresses, but perhaps that's the IPAM/DCIM information. Something has to give the information.
+VLANs can be viewed and exported to another file (to keep allocations consistent between protection systems if files are managed separately). 
+An export to csv of all (or selected) publishing information is provided.
 
 === Storing VLAN Information
 
@@ -161,7 +172,7 @@ VLAN information is stored within the `Communication` section as a `Private` ele
 
 [source,xml]
 ----
-<Private type="Transpower-VLAN-Allocation">
+<Private type="Transpower-VLAN-Allocation" etpc:updated="2023-08-21 13:01:53 +12:00">
     <etpc:Station/>
     <etpc:Bus>
         <etpc:VLAN etpc:serviceName="Ctl/Ind/Test" etpc:serviceType="GSE" etpc:useCase="Bus" etpc:prot1Id="64" etpc:prot2Id="C8" etpc:busName="BusA"/>
@@ -171,12 +182,6 @@ VLAN information is stored within the `Communication` section as a `Private` ele
     </etpc:Bus>
 </Private>
 ----
-
-Further requirements from development:
-
-* VLANs will always be incremented in pairs (whether or not they are required by both protection systems, they will be allocated for both).
-* VLANs will have a fixed increment between Prot1 and Prot2.
-* VLANs will initially be unallocated (i.e. set to a disabled VLAN, e.g. 999).
 
 == Using the Plugin
 
