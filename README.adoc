@@ -119,7 +119,7 @@ VLAN ID::
 |Comment
 
 |P1 to P2 GOOSE
-`ARecl`, `SwgrPos`, `SPSBus`
+|`ARecl`, `SwgrPos`, `SPSBus`
 2+|50-99
 <.^|ARecl Initiate, ARecl Block, Cross tripping if required, Event triggering, ESW indication on GHA LV Incomers
 
