@@ -62,6 +62,8 @@ export declare function appIdGenerator(doc: XMLDocument, serviceType: 'SMV' | 'G
  * @returns a function generating increasing unused `APPID` within `doc` on subsequent invocations
  */
 export declare function vlanIdRangeGenerator(doc: XMLDocument, serviceType: 'SMV' | 'GSE' | 'InterProt', useCase: 'Station' | 'Bus', ignoreValues: string[]): () => VlanPair | null;
+/** @returns the cartesian product of `arrays` */
+export declare function crossProduct<T>(...arrays: T[][]): T[][];
 export default class TPMulticastNaming extends LitElement {
     /** The document being edited as provided to plugins by [[`OpenSCD`]]. */
     doc: XMLDocument;

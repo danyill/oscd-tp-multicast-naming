@@ -41252,7 +41252,7 @@ function selector(tagName, identity) {
         return tags[tagName].selector(tagName, identity);
     return tagName;
 }
-function crossProduct(...arrays) {
+function crossProduct$1(...arrays) {
     return arrays.reduce((a, b) => a.flatMap(d => b.map(e => [d, e].flat())), [[]]);
 }
 function pathParts(identity) {
@@ -41271,7 +41271,7 @@ function hitemSelector(tagName, identity) {
 function terminalSelector(tagName, identity) {
     const [parentIdentity, connectivityNode] = pathParts(identity);
     const parentSelectors = relatives[tagName].parents.flatMap(parentTag => selector(parentTag, parentIdentity).split(','));
-    return crossProduct(parentSelectors, ['>'], [`${tagName}[connectivityNode="${connectivityNode}"]`])
+    return crossProduct$1(parentSelectors, ['>'], [`${tagName}[connectivityNode="${connectivityNode}"]`])
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41284,7 +41284,7 @@ function lNodeSelector(tagName, identity) {
         if (!lnClass || !lnType)
             return voidSelector;
         const parentSelectors = relatives[tagName].parents.flatMap(parentTag => selector(parentTag, parentIdentity).split(','));
-        return crossProduct(parentSelectors, ['>'], [`${tagName}[iedName="None"][lnClass="${lnClass}"][lnType="${lnType}"]`])
+        return crossProduct$1(parentSelectors, ['>'], [`${tagName}[iedName="None"][lnClass="${lnClass}"][lnType="${lnType}"]`])
             .map(strings => strings.join(''))
             .join(',');
     }
@@ -41300,7 +41300,7 @@ function lNodeSelector(tagName, identity) {
         [`[lnClass="${lnClass}"]`],
         lnInst ? [`[lnInst="${lnInst}"]`] : [':not([lnInst])', '[lnInst=""]'],
     ];
-    return crossProduct([tagName], iedNameSelectors, ldInstSelectors, prefixSelectors, lnClassSelectors, lnInstSelectors)
+    return crossProduct$1([tagName], iedNameSelectors, ldInstSelectors, prefixSelectors, lnClassSelectors, lnInstSelectors)
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41333,7 +41333,7 @@ function iEDNameSelector(tagName, identity) {
         [`[lnClass="${lnClass}"]`],
         lnInst ? [`[lnInst="${lnInst}"]`] : [':not([lnInst])', '[lnInst=""]'],
     ];
-    return crossProduct(parentSelectors, ['>'], [tagName], apRefSelectors, ldInstSelectors, prefixSelectors, lnClassSelectors, lnInstSelectors)
+    return crossProduct$1(parentSelectors, ['>'], [tagName], apRefSelectors, ldInstSelectors, prefixSelectors, lnClassSelectors, lnInstSelectors)
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41358,7 +41358,7 @@ function fCDASelector(tagName, identity) {
         [`[fc="${fc}"]`],
         ix ? [`[ix="${ix}"]`] : [':not([ix])', '[ix=""]'],
     ];
-    return crossProduct(parentSelectors, ['>'], [tagName], ldInstSelectors, prefixSelectors, lnClassSelectors, lnInstSelectors, doNameSelectors, daNameSelectors, fcSelectors, ixSelectors)
+    return crossProduct$1(parentSelectors, ['>'], [tagName], ldInstSelectors, prefixSelectors, lnClassSelectors, lnInstSelectors, doNameSelectors, daNameSelectors, fcSelectors, ixSelectors)
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41368,7 +41368,7 @@ function extRefSelector(tagName, identity) {
     if (childIdentity.endsWith(']')) {
         const [intAddr] = childIdentity.split('[');
         const intAddrSelectors = [`[intAddr="${intAddr}"]`];
-        return crossProduct(parentSelectors, ['>'], [tagName], intAddrSelectors)
+        return crossProduct$1(parentSelectors, ['>'], [tagName], intAddrSelectors)
             .map(strings => strings.join(''))
             .join(',');
     }
@@ -41457,7 +41457,7 @@ function extRefSelector(tagName, identity) {
             : [':not([srcLNInst])', '[srcLNInst=""]'],
         intAddr ? [`[intAddr="${intAddr}"]`] : [':not([intAddr])', '[intAddr=""]'],
     ];
-    return crossProduct(parentSelectors, ['>'], [tagName], iedNameSelectors, ldInstSelectors, prefixSelectors, lnClassSelectors, lnInstSelectors, doNameSelectors, daNameSelectors, serviceTypeSelectors, srcCBNameSelectors, srcLDInstSelectors, srcPrefixSelectors, srcLNClassSelectors, srcLNInstSelectors, intAddrSelectors)
+    return crossProduct$1(parentSelectors, ['>'], [tagName], iedNameSelectors, ldInstSelectors, prefixSelectors, lnClassSelectors, lnInstSelectors, doNameSelectors, daNameSelectors, serviceTypeSelectors, srcCBNameSelectors, srcLDInstSelectors, srcPrefixSelectors, srcLNClassSelectors, srcLNInstSelectors, intAddrSelectors)
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41472,7 +41472,7 @@ function lNSelector(tagName, identity) {
         [`[lnClass="${lnClass}"]`],
         [`[inst="${inst}"]`],
     ];
-    return crossProduct(parentSelectors, ['>'], [tagName], prefixSelectors, lnClassSelectors, instSelectors)
+    return crossProduct$1(parentSelectors, ['>'], [tagName], prefixSelectors, lnClassSelectors, instSelectors)
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41488,7 +41488,7 @@ function clientLNSelector(tagName, identity) {
         [`[lnClass="${lnClass}"]`],
         lnInst ? [`[lnInst="${lnInst}"]`] : [':not([lnInst])', '[lnInst=""]'],
     ];
-    return crossProduct(parentSelectors, ['>'], [tagName], iedNameSelectors, apRefSelectors, ldInstSelectors, prefixSelectors, lnClassSelectors, lnInstSelectors)
+    return crossProduct$1(parentSelectors, ['>'], [tagName], iedNameSelectors, apRefSelectors, ldInstSelectors, prefixSelectors, lnClassSelectors, lnInstSelectors)
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41516,7 +41516,7 @@ function ixNamingSelector(tagName, identity, depth = -1) {
         [`[name="${name}"]`],
         ix ? [`[ix="${ix}"]`] : ['[ix=""]', ':not([ix])'],
     ];
-    return crossProduct(parentSelectors, ['>'], [tagName], nameSelectors, ixSelectors)
+    return crossProduct$1(parentSelectors, ['>'], [tagName], nameSelectors, ixSelectors)
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41529,7 +41529,7 @@ function valSelector(tagName, identity) {
         sGroup ? [`[sGroup="${sGroup}"]`] : [''],
         index ? [`:nth-child(${index + 1})`] : [''],
     ];
-    return crossProduct(parentSelectors, ['>'], [tagName], nameSelectors, ixSelectors)
+    return crossProduct$1(parentSelectors, ['>'], [tagName], nameSelectors, ixSelectors)
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41545,7 +41545,7 @@ function controlBlockSelector(tagName, identity) {
     if (!ldInst || !cbName)
         return voidSelector;
     const parents = relatives[tagName].parents.map(parent => selector(parent, parentIdentity));
-    return crossProduct(parents, ['>'], [`${tagName}[ldInst="${ldInst}"][cbName="${cbName}"]`])
+    return crossProduct$1(parents, ['>'], [`${tagName}[ldInst="${ldInst}"][cbName="${cbName}"]`])
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41555,7 +41555,7 @@ function physConnSelector(tagName, identity) {
         relatives[tagName].parents.flatMap(parentTag => selector(parentTag, parentIdentity).split(',')),
         pcType ? [`[type="${pcType}"]`] : [''],
     ];
-    return crossProduct(parentSelectors, ['>'], [tagName], typeSelectors)
+    return crossProduct$1(parentSelectors, ['>'], [tagName], typeSelectors)
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41572,7 +41572,7 @@ function pSelector(tagName, identity) {
         [`[type="${type}"]`],
         index ? [`:nth-child(${index + 1})`] : [''],
     ];
-    return crossProduct(parentSelectors, ['>'], [tagName], typeSelectors, ixSelectors)
+    return crossProduct$1(parentSelectors, ['>'], [tagName], typeSelectors, ixSelectors)
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41586,7 +41586,7 @@ function protNsSelector(tagName, identity) {
     const [parentSelectors] = [
         relatives[tagName].parents.flatMap(parentTag => selector(parentTag, parentIdentity).split(',')),
     ];
-    return crossProduct(parentSelectors, ['>'], [tagName], [`[type="${type}"]`], ['>'], [value])
+    return crossProduct$1(parentSelectors, ['>'], [tagName], [`[type="${type}"]`], ['>'], [value])
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41614,7 +41614,7 @@ function namingSelector(tagName, identity, depth = -1) {
         .filter(selector => !selector.startsWith(voidSelector));
     if (parentSelectors.length === 0)
         return voidSelector;
-    return crossProduct(parentSelectors, ['>'], [tagName], [`[name="${name}"]`])
+    return crossProduct$1(parentSelectors, ['>'], [tagName], [`[name="${name}"]`])
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -41629,7 +41629,7 @@ function singletonSelector(tagName, identity) {
         .filter(selector => !selector.startsWith(voidSelector));
     if (parentSelectors.length === 0)
         return voidSelector;
-    return crossProduct(parentSelectors, ['>'], [tagName])
+    return crossProduct$1(parentSelectors, ['>'], [tagName])
         .map(strings => strings.join(''))
         .join(',');
 }
@@ -42495,15 +42495,34 @@ function getProtectionNumber(iedName) {
     }
     return '1';
 }
+/** @returns the cartesian product of `arrays` */
+function crossProduct(...arrays) {
+    return arrays.reduce((a, b) => a.flatMap(d => b.map(e => [d, e].flat())), [[]]);
+}
 function getCommAddress(ctrlBlock) {
     var _a;
     const doc = ctrlBlock.ownerDocument;
     const ctrlLdInst = ctrlBlock.closest('LDevice').getAttribute('inst');
     const addressTag = ctrlBlock.tagName === 'GSEControl' ? 'GSE' : 'SMV';
-    const iedName = ctrlBlock.closest('IED').getAttribute('name');
+    const ied = ctrlBlock.closest('IED');
+    const iedName = ied.getAttribute('name');
     const apName = (_a = ctrlBlock.closest('AccessPoint')) === null || _a === void 0 ? void 0 : _a.getAttribute('name');
     const cbName = ctrlBlock.getAttribute('name');
-    return doc.querySelector(`Communication > SubNetwork > ConnectedAP[iedName="${iedName}"][apName="${apName}"] > ${addressTag}[ldInst="${ctrlLdInst}"][cbName="${cbName}"]`);
+    let apNames = [];
+    const serverAts = ied.querySelectorAll(`AccessPoint > ServerAt[apName="${apName}"`);
+    if (serverAts) {
+        const serverAtNames = Array.from(serverAts).map(ap => ap.closest('AccessPoint').getAttribute('name'));
+        apNames = [apName, ...serverAtNames];
+    }
+    else {
+        apNames = [apName];
+    }
+    const connectedAps = `Communication > SubNetwork > ConnectedAP[iedName="${iedName}"]`;
+    const connectedApNames = apNames.map(ap => `[apName="${ap}"]`);
+    const addressElement = `${addressTag}[ldInst="${ctrlLdInst}"][cbName="${cbName}"]`;
+    return doc.querySelector(crossProduct([connectedAps], connectedApNames, ['>'], [addressElement])
+        .map(strings => strings.join(''))
+        .join(','));
 }
 function updateTextContent(node, newContent) {
     if (!node)
@@ -43675,5 +43694,5 @@ registerStyles('vaadin-grid', i$5 `
     }
   `);
 
-export { appIdGenerator, TPMulticastNaming as default, vlanIdRangeGenerator };
+export { appIdGenerator, crossProduct, TPMulticastNaming as default, vlanIdRangeGenerator };
 //# sourceMappingURL=oscd-tp-multicast-naming.js.map
