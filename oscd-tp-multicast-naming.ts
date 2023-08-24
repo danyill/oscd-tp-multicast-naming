@@ -1044,7 +1044,10 @@ export default class TPMulticastNaming extends LitElement {
 
           let smvIDFunction: string | undefined;
           if (addr)
-            smvIDFunction = control.getAttribute('smvID')?.split('/')[1];
+            smvIDFunction = control
+              .getAttribute('smvID')
+              ?.replace(`${iedName}`, '')
+              .replace('/', '');
 
           const controlName = control.getAttribute('name')!;
 
@@ -1057,44 +1060,39 @@ export default class TPMulticastNaming extends LitElement {
           if (
             controlName.startsWith('Ctl') ||
             controlName.startsWith('Ind') ||
-            controlName.startsWith('Test')
+            controlName.startsWith('Test') ||
+            controlName.startsWith('SPSBus')
           ) {
-            serviceName = 'Ctl/Ind/Test';
+            serviceName = 'Ctl/Ind/Test/SPS';
             useCase = 'Bus';
-          } else if (controlName.startsWith('ARecl')) {
-            serviceName = 'ARecl';
+          } else if (
+            controlName.startsWith('ARecl') ||
+            controlName.startsWith('SwgrPos')
+          ) {
+            serviceName = 'ARecl/SwgrPos';
             serviceType = 'InterProt';
             useCase = 'Bus';
-          } else if (controlName.startsWith('SwgrPos')) {
-            serviceName = 'SwgrPos';
-            serviceType = 'InterProt';
-            useCase = 'Bus';
-          } else if (controlName.startsWith('ILock')) {
-            serviceName = 'ILock';
+          } else if (
+            controlName.startsWith('ILock') ||
+            controlName.startsWith('CBFailInit') ||
+            controlName.startsWith('SPSStn')
+          ) {
+            serviceName = 'ILock/SPS/CBFailInit';
             useCase = 'Station';
-          } else if (controlName.startsWith('EveTrig')) {
-            serviceName = 'EveTrig';
-            useCase = 'Station';
-          } else if (controlName.startsWith('SPSBus')) {
-            serviceName = 'SPSBus';
-            useCase = 'Bus';
-          } else if (controlName.startsWith('SPSStn')) {
-            serviceName = 'SPSStn';
-            useCase = 'Station';
-          } else if (controlName.startsWith('CBFailInit')) {
-            serviceName = 'CBFailInit';
-            useCase = 'Station';
-          } else if (serviceType === 'SMV' && !smvIDFunction) {
-            serviceName = 'BusSV';
-            useCase = 'Bus';
-          } else if (serviceType === 'SMV' && smvIDFunction === 'VTSelBus') {
-            serviceName = 'VTSelBus';
+          } else if (
+            serviceType === 'SMV' &&
+            (smvIDFunction === '' ||
+              smvIDFunction === 'Phase' ||
+              smvIDFunction === 'NCT_UB_ET')
+          ) {
+            serviceName = 'Bus: TEMPLATE, Phase, NCT_UB_ET';
             useCase = 'Bus';
           } else if (serviceType === 'SMV' && smvIDFunction === 'VTSelStn') {
             serviceName = 'VTSelStn';
             useCase = 'Station';
           }
 
+          // Allocate if adequate definition is available
           if (
             serviceName &&
             serviceType &&
@@ -1181,11 +1179,6 @@ export default class TPMulticastNaming extends LitElement {
       edits = [];
     }
 
-    // selectedCommElements.forEach(commElement => {
-
-    //   console.log('hi');
-    // });
-
     selectedCommElements.forEach(element => {
       const protNum = getProtectionNumber(
         element.closest('ConnectedAP')!.getAttribute('iedName')!
@@ -1242,7 +1235,16 @@ export default class TPMulticastNaming extends LitElement {
       );
 
       // PRIORITY
-      const priority = element.tagName === 'GSE' ? '4' : '5';
+      let priority: string = '5';
+      if (
+        element.tagName === 'SMV' ||
+        (element.tagName === 'GSE' &&
+          (element.getAttribute('cbName')?.toUpperCase().startsWith('CTL') ||
+            element.getAttribute('cbName')?.toUpperCase().startsWith('TRIP')))
+      ) {
+        priority = '6';
+      }
+
       edits.push(
         ...updateTextContent(
           element.querySelector('Address > P[type="VLAN-PRIORITY"]'),

@@ -68,20 +68,22 @@ For SMV Traffic:
 * Otherwise, the `smvID` is generated with the IED name, a forward slash and the value of `smvID`.
 
 VLAN Priority::
-* All GOOSE traffic is Priority 4
-* All SMV traffic is Priority 5
+* All GOOSE tripping messages (as defined by control block names beginning `Ctl` or `Trip`) have Priority 6.
+* All other GOOSE traffic is Priority 5
+* All SMV traffic is Priority 6
 
 GSE `MinTime` and `MaxTime`::
 * All tripping messages (as defined by control block names beginning `Ctl` or `Trip`) have a `MinTime` of 4 ms and a `MaxTime` of 1000 ms.
 * All other messages have a `MinTime` of 100 ms and a `MaxTime` of 1000 ms.
 
 VLAN ID::
-
 * VLANs are allocated on the basis of the control block name for GSE and the `smvID` for SMV (after the trailing `/`)
 * They are allocated as pairs for Prot1 and Prot2 at the same time. Prot1 and Prot2 are identified by the IED name ending in an even and odd number respectively.
 * A VLAN is either substation wide or on a per primary system bus basis.
-* For a Substation:
+* Allocation as follows
 +
+--
+.For a Substation
 [cols="1*<.^,1*<.^,2*^.^,1*<.^",options="header,unbreakable"]
 |===
 |Service Type
@@ -91,12 +93,12 @@ VLAN ID::
 |Comment
 
 |P1 to P2 GOOSE
-|?
+|Nothing as yet.
 2+|1050-1099
-<.^|Nothing as yet...
+<.^|Nothing as yet.
 
 |GOOSE
-|`EveTrig`, `ILock`, `CBFailInit`, `SPSBus`
+|`ILock`, `CBFailInit`, `SPSBus`
 |1000-1049
 |2000-2049
 |e.g. Interlocking, SPS schemes across a bus, event triggering, bus protection CB Fail initiate
@@ -108,8 +110,7 @@ VLAN ID::
 |e.g. VT Selection, Synch Check and Deadline Charge, Remote Synch
 |===
 
-* For a Bus:
-+
+.For a Bus
 [cols="1*<.^,1*<.^,2*^.^,1*<.^",options="header,unbreakable"]
 |===
 |Service Type
@@ -130,12 +131,14 @@ VLAN ID::
 |Bus protection, SPS schemes within a bus
 
 |(Bus and Bay Level) SV
-|Just the IED name, `VTSelBus`
+|Just the IED name,
+`TEMPLATE`, `Phase`, `NCT_UB_ET`
 |150-199
 |250-299
 |Bay protections
 
 |===
+--
 
 * Buses are determine by a Function named `BusPhysConnection` under a Bay in the `Substation` section with a `name` which begins `Bus` followed by an underscore and the bus name.
 ** The bus `name` attribute is the definition of "bus" in the above.
