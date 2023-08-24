@@ -43030,7 +43030,8 @@ class TPMulticastNaming extends s$2 {
                     return;
                 let smvIDFunction;
                 if (addr)
-                    smvIDFunction = (_a = control.getAttribute('smvID')) === null || _a === void 0 ? void 0 : _a.split('/')[1];
+                    smvIDFunction = (_a = control
+                        .getAttribute('smvID')) === null || _a === void 0 ? void 0 : _a.replace(`${iedName}`, '').replace('/', '');
                 const controlName = control.getAttribute('name');
                 let useCase;
                 let serviceType;
@@ -43038,52 +43039,35 @@ class TPMulticastNaming extends s$2 {
                 let serviceName;
                 if (controlName.startsWith('Ctl') ||
                     controlName.startsWith('Ind') ||
-                    controlName.startsWith('Test')) {
-                    serviceName = 'Ctl/Ind/Test';
+                    controlName.startsWith('Test') ||
+                    controlName.startsWith('SPSBus')) {
+                    serviceName = 'Ctl/Ind/Test/SPS';
                     useCase = 'Bus';
                 }
-                else if (controlName.startsWith('ARecl')) {
-                    serviceName = 'ARecl';
+                else if (controlName.startsWith('ARecl') ||
+                    controlName.startsWith('SwgrPos')) {
+                    serviceName = 'ARecl/SwgrPos';
                     serviceType = 'InterProt';
                     useCase = 'Bus';
                 }
-                else if (controlName.startsWith('SwgrPos')) {
-                    serviceName = 'SwgrPos';
-                    serviceType = 'InterProt';
-                    useCase = 'Bus';
-                }
-                else if (controlName.startsWith('ILock')) {
-                    serviceName = 'ILock';
+                else if (controlName.startsWith('ILock') ||
+                    controlName.startsWith('CBFailInit') ||
+                    controlName.startsWith('SPSStn')) {
+                    serviceName = 'ILock/SPS/CBFailInit';
                     useCase = 'Station';
                 }
-                else if (controlName.startsWith('EveTrig')) {
-                    serviceName = 'EveTrig';
-                    useCase = 'Station';
-                }
-                else if (controlName.startsWith('SPSBus')) {
-                    serviceName = 'SPSBus';
-                    useCase = 'Bus';
-                }
-                else if (controlName.startsWith('SPSStn')) {
-                    serviceName = 'SPSStn';
-                    useCase = 'Station';
-                }
-                else if (controlName.startsWith('CBFailInit')) {
-                    serviceName = 'CBFailInit';
-                    useCase = 'Station';
-                }
-                else if (serviceType === 'SMV' && !smvIDFunction) {
-                    serviceName = 'BusSV';
-                    useCase = 'Bus';
-                }
-                else if (serviceType === 'SMV' && smvIDFunction === 'VTSelBus') {
-                    serviceName = 'VTSelBus';
+                else if (serviceType === 'SMV' &&
+                    (smvIDFunction === '' ||
+                        smvIDFunction === 'Phase' ||
+                        smvIDFunction === 'NCT_UB_ET')) {
+                    serviceName = 'Bus: TEMPLATE, Phase, NCT_UB_ET';
                     useCase = 'Bus';
                 }
                 else if (serviceType === 'SMV' && smvIDFunction === 'VTSelStn') {
                     serviceName = 'VTSelStn';
                     useCase = 'Station';
                 }
+                // Allocate if adequate definition is available
                 if (serviceName &&
                     serviceType &&
                     (useCase === 'Station' ||
@@ -43141,11 +43125,8 @@ class TPMulticastNaming extends s$2 {
             this.dispatchEvent(newEditEvent(edits));
             edits = [];
         }
-        // selectedCommElements.forEach(commElement => {
-        //   console.log('hi');
-        // });
         selectedCommElements.forEach(element => {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e, _f;
             const protNum = getProtectionNumber(element.closest('ConnectedAP').getAttribute('iedName'));
             const newMac = nextMac[element.tagName][protNum]();
             edits.push(...updateTextContent(element.querySelector('Address > P[type="MAC-Address"]'), newMac));
@@ -43177,7 +43158,13 @@ class TPMulticastNaming extends s$2 {
             const newAppId = nextAppId[element.tagName][protType]();
             edits.push(...updateTextContent(element.querySelector('Address > P[type="APPID"]'), newAppId));
             // PRIORITY
-            const priority = element.tagName === 'GSE' ? '4' : '5';
+            let priority = '5';
+            if (element.tagName === 'SMV' ||
+                (element.tagName === 'GSE' &&
+                    (((_e = element.getAttribute('cbName')) === null || _e === void 0 ? void 0 : _e.toUpperCase().startsWith('CTL')) ||
+                        ((_f = element.getAttribute('cbName')) === null || _f === void 0 ? void 0 : _f.toUpperCase().startsWith('TRIP'))))) {
+                priority = '6';
+            }
             edits.push(...updateTextContent(element.querySelector('Address > P[type="VLAN-PRIORITY"]'), priority));
         });
         if (edits) {
