@@ -42715,15 +42715,17 @@ class TPMulticastNaming extends s$2 {
             value="None"
             ><span>None</span>
           </mwc-list-item>
-          ${[...new Set(this.busConnections.values())].map(busName => x `<mwc-list-item
-              graphic="icon"
-              left
-              ?selected=${this.selectedBus === busName}
-              value="${busName}"
-            >
-              <span>${busName}</span>
-              <mwc-icon slot="graphic">check</mwc-icon>
-            </mwc-list-item>`)}
+          ${[...new Set(this.busConnections.values())]
+            .sort((a, b) => a.localeCompare(b))
+            .map(busName => x `<mwc-list-item
+                graphic="icon"
+                left
+                ?selected=${this.selectedBus === busName}
+                value="${busName}"
+              >
+                <span>${busName}</span>
+                <mwc-icon slot="graphic">check</mwc-icon>
+              </mwc-list-item>`)}
         </mwc-menu>
       </mwc-formfield>
     </div>`;
@@ -43052,8 +43054,9 @@ class TPMulticastNaming extends s$2 {
                 }
                 else if (controlName.startsWith('ILock') ||
                     controlName.startsWith('CBFailInit') ||
-                    controlName.startsWith('SPSStn')) {
-                    serviceName = 'ILock/SPS/CBFailInit';
+                    controlName.startsWith('SPSStn') ||
+                    controlName.startsWith('VReg')) {
+                    serviceName = 'ILock/SPS/CBFailInit/VReg';
                     useCase = 'Station';
                 }
                 else if (serviceType === 'SMV' &&
