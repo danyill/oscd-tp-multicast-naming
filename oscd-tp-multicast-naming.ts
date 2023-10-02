@@ -304,8 +304,8 @@ export function vlanIdRangeGenerator(
     if (uniqueVlan) {
       usedVlanNumbers.add(uniqueVlan);
       return {
-        prot1Id: uniqueVlan?.toString(16).toUpperCase(),
-        prot2Id: (uniqueVlan + p2Offset)?.toString(16).toUpperCase() ?? '',
+        prot1Id: uniqueVlan?.toString(16).padStart(3, '0').toUpperCase(),
+        prot2Id: (uniqueVlan + p2Offset)?.toString(16).padStart(3, '0').toUpperCase() ?? '',
       };
     }
     return null;
