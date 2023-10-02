@@ -42477,8 +42477,8 @@ function vlanIdRangeGenerator(doc, serviceType, useCase, ignoreValues) {
         if (uniqueVlan) {
             usedVlanNumbers.add(uniqueVlan);
             return {
-                prot1Id: uniqueVlan === null || uniqueVlan === void 0 ? void 0 : uniqueVlan.toString(16).toUpperCase(),
-                prot2Id: (_b = (_a = (uniqueVlan + p2Offset)) === null || _a === void 0 ? void 0 : _a.toString(16).toUpperCase()) !== null && _b !== void 0 ? _b : '',
+                prot1Id: uniqueVlan === null || uniqueVlan === void 0 ? void 0 : uniqueVlan.toString(16).padStart(3, '0').toUpperCase(),
+                prot2Id: (_b = (_a = (uniqueVlan + p2Offset)) === null || _a === void 0 ? void 0 : _a.toString(16).padStart(3, '0').toUpperCase()) !== null && _b !== void 0 ? _b : '',
             };
         }
         return null;
