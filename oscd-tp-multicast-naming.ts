@@ -994,7 +994,7 @@ export default class TPMulticastNaming extends LitElement {
         const cbName = control.getAttribute('name') ?? 'Unknown';
         const update = {
           element: control,
-          attributes: { appID: `${iedName}/${cbName}` },
+          attributes: { appID: `${iedName}_${cbName}` },
         };
         edits.push(update);
       }
@@ -1006,7 +1006,7 @@ export default class TPMulticastNaming extends LitElement {
             element: control,
             attributes: {
               smvID:
-                smvID === 'TEMPLATE' ? `${iedName}` : `${iedName}/${smvID}`,
+                smvID === 'TEMPLATE' ? `${iedName}` : `${iedName}_${smvID}`,
             },
           };
           edits.push(update);
