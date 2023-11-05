@@ -42983,7 +42983,7 @@ class TPMulticastNaming extends s$2 {
                 const cbName = (_a = control.getAttribute('name')) !== null && _a !== void 0 ? _a : 'Unknown';
                 const update = {
                     element: control,
-                    attributes: { appID: `${iedName}/${cbName}` },
+                    attributes: { appID: `${iedName}_${cbName}` },
                 };
                 edits.push(update);
             }
@@ -42993,7 +42993,7 @@ class TPMulticastNaming extends s$2 {
                     const update = {
                         element: control,
                         attributes: {
-                            smvID: smvID === 'TEMPLATE' ? `${iedName}` : `${iedName}/${smvID}`,
+                            smvID: smvID === 'TEMPLATE' ? `${iedName}` : `${iedName}_${smvID}`,
                         },
                     };
                     edits.push(update);
