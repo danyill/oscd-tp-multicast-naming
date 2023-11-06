@@ -895,21 +895,38 @@ export default class TPMulticastNaming extends LitElement {
     selectedControlElements: Element[]
   ): void {
     // MAC Addresses
-    const ignoreMACs = selectedCommElements.map(
-      elem =>
-        elem
-          ?.querySelector('Address > P[type="MAC-Address"]')
-          ?.textContent?.toUpperCase() ?? ''
+    const allCommElements = Array.from(
+      this.doc.querySelectorAll(
+        `Communication > SubNetwork > ConnectedAP > GSE, Communication > SubNetwork > ConnectedAP > SMV`
+      )
     );
+
+    const unselectedMacs = allCommElements
+      .filter(comm => !selectedCommElements.includes(comm))
+      .map(
+        elem =>
+          elem
+            ?.querySelector('Address > P[type="MAC-Address"]')
+            ?.textContent?.toUpperCase() ?? ''
+      );
+
+    const reallocatableMACs = selectedCommElements
+      .map(
+        elem =>
+          elem
+            ?.querySelector('Address > P[type="MAC-Address"]')
+            ?.textContent?.toUpperCase() ?? ''
+      )
+      .filter(mac => !unselectedMacs.includes(mac));
 
     const nextMac: MacObject = {
       GSE: {
-        '1': macAddressGenerator(this.doc, 'GSE', '1', ignoreMACs),
-        '2': macAddressGenerator(this.doc, 'GSE', '2', ignoreMACs),
+        '1': macAddressGenerator(this.doc, 'GSE', '1', reallocatableMACs),
+        '2': macAddressGenerator(this.doc, 'GSE', '2', reallocatableMACs),
       },
       SMV: {
-        '1': macAddressGenerator(this.doc, 'SMV', '1', ignoreMACs),
-        '2': macAddressGenerator(this.doc, 'SMV', '2', ignoreMACs),
+        '1': macAddressGenerator(this.doc, 'SMV', '1', reallocatableMACs),
+        '2': macAddressGenerator(this.doc, 'SMV', '2', reallocatableMACs),
       },
     };
 
