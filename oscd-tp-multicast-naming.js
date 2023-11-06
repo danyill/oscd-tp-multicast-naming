@@ -43044,7 +43044,7 @@ class TPMulticastNaming extends s$2 {
                 let smvIDFunction;
                 if (addr)
                     smvIDFunction = (_a = control
-                        .getAttribute('smvID')) === null || _a === void 0 ? void 0 : _a.replace(`${iedName}`, '').replace('/', '');
+                        .getAttribute('smvID')) === null || _a === void 0 ? void 0 : _a.replace(`${iedName}`, '').replace('_', '');
                 const controlName = control.getAttribute('name');
                 let useCase;
                 let serviceType;
