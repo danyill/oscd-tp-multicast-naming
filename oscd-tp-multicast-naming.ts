@@ -1100,14 +1100,6 @@ export default class TPMulticastNaming extends LitElement {
             serviceType = 'InterProt';
             useCase = 'Bus';
           } else if (
-            controlName.startsWith('ILock') ||
-            controlName.startsWith('CBFailInit') ||
-            controlName.startsWith('SPSStn') ||
-            controlName.startsWith('VReg')
-          ) {
-            serviceName = 'Station GOOSE';
-            useCase = 'Station';
-          } else if (
             serviceType === 'SMV' &&
             (smvIDFunction === '' ||
               smvIDFunction === 'Phase' ||
@@ -1115,21 +1107,17 @@ export default class TPMulticastNaming extends LitElement {
           ) {
             serviceName = 'Bus/Bay SV';
             useCase = 'Bus';
-          } else if (serviceType === 'SMV' && smvIDFunction === 'VTSelStn') {
-            serviceName = 'Station SV';
-            useCase = 'Station';
           }
 
-          // Allocate if adequate definition is available
+          // Allocate if adequate definition is not available
           if (
             serviceName &&
             serviceType &&
-            (useCase === 'Station' ||
-              (useCase === 'Bus' && busName !== 'NOBUSES'))
+            useCase === 'Bus' &&
+            busName !== 'NOBUSES'
           ) {
-            const { stationVlans, busVlans } = getAllocatedVlans(this.doc);
-            const existingVlans =
-              useCase === 'Station' ? stationVlans : busVlans;
+            const { busVlans } = getAllocatedVlans(this.doc);
+            const existingVlans = busVlans;
 
             const existingVlan = existingVlans?.find(
               vlan =>
@@ -1182,6 +1170,93 @@ export default class TPMulticastNaming extends LitElement {
             }
           }
         });
+    });
+
+    selectedControlElements.forEach(control => {
+      const iedName = control.closest('IED')!.getAttribute('name')!;
+      const addr = getCommAddress(control);
+
+      if (!addr) return;
+
+      let smvIDFunction: string | undefined;
+      if (addr)
+        smvIDFunction = control
+          .getAttribute('smvID')
+          ?.replace(`${iedName}`, '')
+          .replace('/', '');
+
+      const controlName = control.getAttribute('name')!;
+
+      let useCase: 'Bus' | 'Station' | undefined;
+
+      const serviceType = control.tagName === 'GSEControl' ? 'GSE' : 'SMV';
+
+      let serviceName: string | undefined;
+      if (
+        controlName.startsWith('ILock') ||
+        controlName.startsWith('CBFailInit') ||
+        controlName.startsWith('SPSStn') ||
+        controlName.startsWith('VReg')
+      ) {
+        serviceName = 'Station GOOSE';
+        useCase = 'Station';
+      } else if (serviceType === 'SMV' && smvIDFunction === 'VTSelStn') {
+        serviceName = 'Station SV';
+        useCase = 'Station';
+      }
+
+      // Allocate if adequate definition is not available
+      if (serviceName && serviceType && useCase === 'Station') {
+        const { stationVlans } = getAllocatedVlans(this.doc);
+        const existingVlans = stationVlans;
+
+        const existingVlan = existingVlans?.find(
+          vlan => vlan.serviceName === serviceName
+        );
+
+        const vlanId =
+          getProtectionNumber(iedName) === '1'
+            ? existingVlan?.prot1Id
+            : existingVlan?.prot2Id;
+
+        if (vlanId) {
+          // update the vlan
+          edits.push(
+            ...updateTextContent(
+              addr.querySelector('Address > P[type="VLAN-ID"]'),
+              vlanId
+            )
+          );
+        } else {
+          // allocate VLAN
+          const newVlanIds = nextVlan[useCase][serviceType]();
+
+          const chosenVlanId =
+            getProtectionNumber(iedName) === '1'
+              ? newVlanIds?.prot1Id
+              : newVlanIds?.prot2Id;
+
+          if (newVlanIds) {
+            const vlan: Vlan = {
+              serviceName,
+              serviceType,
+              useCase,
+              ...newVlanIds!,
+            };
+
+            writeVlan(this.doc, vlan, this);
+            vlanAllocated = true;
+            // TODO: Parameterise 3E7.
+            edits.push(
+              ...updateTextContent(
+                addr.querySelector('Address > P[type="VLAN-ID"]'),
+                chosenVlanId ?? '3E7'
+              )
+            );
+            // console.log('New VLAN:', vlan);
+          }
+        }
+      }
     });
 
     if (vlanAllocated) {
