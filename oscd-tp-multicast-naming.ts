@@ -1064,13 +1064,15 @@ export default class TPMulticastNaming extends LitElement {
 
           let serviceName: string | undefined;
           if (
-            controlName.startsWith('Ctl') ||
             controlName.startsWith('Ind') ||
             controlName.startsWith('Test') ||
             controlName.startsWith('SPSBus') ||
             controlName.startsWith('TCh')
           ) {
-            serviceName = 'Ctl/Ind/Test/SPS/TCh';
+            serviceName = 'Bus/Bay GOOSE Slow';
+            useCase = 'Bus';
+          } else if (controlName.startsWith('Ctl')) {
+            serviceName = 'Bus/Bay GOOSE Fast';
             useCase = 'Bus';
           } else if (
             controlName.startsWith('ARecl') ||
@@ -1085,7 +1087,7 @@ export default class TPMulticastNaming extends LitElement {
             controlName.startsWith('SPSStn') ||
             controlName.startsWith('VReg')
           ) {
-            serviceName = 'ILock/SPS/CBFailInit/VReg/TCh';
+            serviceName = 'Station GOOSE';
             useCase = 'Station';
           } else if (
             serviceType === 'SMV' &&
@@ -1093,10 +1095,10 @@ export default class TPMulticastNaming extends LitElement {
               smvIDFunction === 'Phase' ||
               smvIDFunction === 'NCT_UB_ET')
           ) {
-            serviceName = 'Bus: TEMPLATE, Phase, NCT_UB_ET';
+            serviceName = 'Bus/Bay SV';
             useCase = 'Bus';
           } else if (serviceType === 'SMV' && smvIDFunction === 'VTSelStn') {
-            serviceName = 'VTSelStn';
+            serviceName = 'Station SV';
             useCase = 'Station';
           }
 

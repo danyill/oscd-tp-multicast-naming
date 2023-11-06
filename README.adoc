@@ -124,11 +124,16 @@ VLAN ID::
 2+|50-99
 <.^|ARecl Initiate, ARecl Block, Cross tripping if required, Event triggering, ESW indication on GHA LV Incomers
 
-|(Bus and Bay Level) GOOSE
-|`Ctl`, `Ind`, `Test`, `TCh`
-|100-149
-|200-249
+|(Bus and Bay Level) GOOSE (Slow)
+|`Ind`, `Test`, `TCh`
+.2+|100-149
+.2+|200-249
 |Bus protection, SPS schemes within a bus, bay protections, test signals, tap changing
+
+|(Bus and Bay Level) GOOSE (Fast)
+|`Ctl`
+
+|Protection and tripping
 
 |(Bus and Bay Level) SV
 |Just the IED name,
