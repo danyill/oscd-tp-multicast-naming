@@ -1067,9 +1067,10 @@ export default class TPMulticastNaming extends LitElement {
             controlName.startsWith('Ctl') ||
             controlName.startsWith('Ind') ||
             controlName.startsWith('Test') ||
-            controlName.startsWith('SPSBus')
+            controlName.startsWith('SPSBus') ||
+            controlName.startsWith('TCh')
           ) {
-            serviceName = 'Ctl/Ind/Test/SPS';
+            serviceName = 'Ctl/Ind/Test/SPS/TCh';
             useCase = 'Bus';
           } else if (
             controlName.startsWith('ARecl') ||
@@ -1084,7 +1085,7 @@ export default class TPMulticastNaming extends LitElement {
             controlName.startsWith('SPSStn') ||
             controlName.startsWith('VReg')
           ) {
-            serviceName = 'ILock/SPS/CBFailInit/VReg';
+            serviceName = 'ILock/SPS/CBFailInit/VReg/TCh';
             useCase = 'Station';
           } else if (
             serviceType === 'SMV' &&
