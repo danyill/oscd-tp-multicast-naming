@@ -42566,7 +42566,8 @@ function writeVlan(doc, vlan, dispatchElement) {
     // TODO: Fix my types
     Object.keys(vlan).forEach((attrName) => {
         const attrValue = vlan[attrName];
-        newVlan.setAttribute(attrName, attrValue);
+        if (!(attrName === 'busName' && vlan.useCase === 'Station'))
+            newVlan.setAttribute(attrName, attrValue);
     });
     const edit = {
         node: newVlan,
@@ -42625,6 +42626,7 @@ function formatXml(xml, tab) {
 class TPMulticastNaming extends s$2 {
     constructor() {
         super(...arguments);
+        this.editCount = -1;
         this.gridItems = [];
         this.selectedItems = [];
         this.publisherGOOSE = true;
@@ -42910,18 +42912,27 @@ class TPMulticastNaming extends s$2 {
     }
     updateCommElements(selectedCommElements, selectedControlElements) {
         // MAC Addresses
-        const ignoreMACs = selectedCommElements.map(elem => {
+        const allCommElements = Array.from(this.doc.querySelectorAll(`:root > Communication > SubNetwork > ConnectedAP > GSE, :root > Communication > SubNetwork > ConnectedAP > SMV`));
+        const unselectedMacs = allCommElements
+            .filter(comm => !selectedCommElements.includes(comm))
+            .map(elem => {
             var _a, _b, _c;
             return (_c = (_b = (_a = elem === null || elem === void 0 ? void 0 : elem.querySelector('Address > P[type="MAC-Address"]')) === null || _a === void 0 ? void 0 : _a.textContent) === null || _b === void 0 ? void 0 : _b.toUpperCase()) !== null && _c !== void 0 ? _c : '';
         });
+        const reallocatableMACs = selectedCommElements
+            .map(elem => {
+            var _a, _b, _c;
+            return (_c = (_b = (_a = elem === null || elem === void 0 ? void 0 : elem.querySelector('Address > P[type="MAC-Address"]')) === null || _a === void 0 ? void 0 : _a.textContent) === null || _b === void 0 ? void 0 : _b.toUpperCase()) !== null && _c !== void 0 ? _c : '';
+        })
+            .filter(mac => !unselectedMacs.includes(mac));
         const nextMac = {
             GSE: {
-                '1': macAddressGenerator(this.doc, 'GSE', '1', ignoreMACs),
-                '2': macAddressGenerator(this.doc, 'GSE', '2', ignoreMACs),
+                '1': macAddressGenerator(this.doc, 'GSE', '1', reallocatableMACs),
+                '2': macAddressGenerator(this.doc, 'GSE', '2', reallocatableMACs),
             },
             SMV: {
-                '1': macAddressGenerator(this.doc, 'SMV', '1', ignoreMACs),
-                '2': macAddressGenerator(this.doc, 'SMV', '2', ignoreMACs),
+                '1': macAddressGenerator(this.doc, 'SMV', '1', reallocatableMACs),
+                '2': macAddressGenerator(this.doc, 'SMV', '2', reallocatableMACs),
             },
         };
         // APP IDs
@@ -43039,44 +43050,37 @@ class TPMulticastNaming extends s$2 {
                 let serviceType;
                 serviceType = control.tagName === 'GSEControl' ? 'GSE' : 'SMV';
                 let serviceName;
-                if (controlName.startsWith('Ctl') ||
-                    controlName.startsWith('Ind') ||
+                if (controlName.startsWith('Ind') ||
                     controlName.startsWith('Test') ||
-                    controlName.startsWith('SPSBus')) {
-                    serviceName = 'Ctl/Ind/Test/SPS';
+                    controlName.startsWith('SPSBus') ||
+                    controlName.startsWith('TCh')) {
+                    serviceName = 'Bus/Bay GOOSE Slow';
+                    useCase = 'Bus';
+                }
+                else if (controlName.startsWith('Ctl')) {
+                    serviceName = 'Bus/Bay GOOSE Fast';
                     useCase = 'Bus';
                 }
                 else if (controlName.startsWith('ARecl') ||
                     controlName.startsWith('SwgrPos')) {
-                    serviceName = 'ARecl/SwgrPos';
+                    serviceName = 'P1 to P2 ARecl/SwgrPos';
                     serviceType = 'InterProt';
                     useCase = 'Bus';
-                }
-                else if (controlName.startsWith('ILock') ||
-                    controlName.startsWith('CBFailInit') ||
-                    controlName.startsWith('SPSStn') ||
-                    controlName.startsWith('VReg')) {
-                    serviceName = 'ILock/SPS/CBFailInit/VReg';
-                    useCase = 'Station';
                 }
                 else if (serviceType === 'SMV' &&
                     (smvIDFunction === '' ||
                         smvIDFunction === 'Phase' ||
                         smvIDFunction === 'NCT_UB_ET')) {
-                    serviceName = 'Bus: TEMPLATE, Phase, NCT_UB_ET';
+                    serviceName = 'Bus/Bay SV';
                     useCase = 'Bus';
                 }
-                else if (serviceType === 'SMV' && smvIDFunction === 'VTSelStn') {
-                    serviceName = 'VTSelStn';
-                    useCase = 'Station';
-                }
-                // Allocate if adequate definition is available
+                // Allocate if adequate definition is not available
                 if (serviceName &&
                     serviceType &&
-                    (useCase === 'Station' ||
-                        (useCase === 'Bus' && busName !== 'NOBUSES'))) {
-                    const { stationVlans, busVlans } = getAllocatedVlans(this.doc);
-                    const existingVlans = useCase === 'Station' ? stationVlans : busVlans;
+                    useCase === 'Bus' &&
+                    busName !== 'NOBUSES') {
+                    const { busVlans } = getAllocatedVlans(this.doc);
+                    const existingVlans = busVlans;
                     const existingVlan = existingVlans === null || existingVlans === void 0 ? void 0 : existingVlans.find(vlan => (vlan.busName === busName || busName === 'NOBUSES') &&
                         vlan.serviceName === serviceName);
                     const vlanId = getProtectionNumber(iedName) === '1'
@@ -43109,6 +43113,65 @@ class TPMulticastNaming extends s$2 {
                     }
                 }
             });
+        });
+        selectedControlElements.forEach(control => {
+            var _a;
+            const iedName = control.closest('IED').getAttribute('name');
+            const addr = getCommAddress(control);
+            if (!addr)
+                return;
+            let smvIDFunction;
+            if (addr)
+                smvIDFunction = (_a = control
+                    .getAttribute('smvID')) === null || _a === void 0 ? void 0 : _a.replace(`${iedName}`, '').replace('/', '');
+            const controlName = control.getAttribute('name');
+            let useCase;
+            const serviceType = control.tagName === 'GSEControl' ? 'GSE' : 'SMV';
+            let serviceName;
+            if (controlName.startsWith('ILock') ||
+                controlName.startsWith('CBFailInit') ||
+                controlName.startsWith('SPSStn') ||
+                controlName.startsWith('VReg')) {
+                serviceName = 'Station GOOSE';
+                useCase = 'Station';
+            }
+            else if (serviceType === 'SMV' && smvIDFunction === 'VTSelStn') {
+                serviceName = 'Station SV';
+                useCase = 'Station';
+            }
+            // Allocate if adequate definition is not available
+            if (serviceName && serviceType && useCase === 'Station') {
+                const { stationVlans } = getAllocatedVlans(this.doc);
+                const existingVlans = stationVlans;
+                const existingVlan = existingVlans === null || existingVlans === void 0 ? void 0 : existingVlans.find(vlan => vlan.serviceName === serviceName);
+                const vlanId = getProtectionNumber(iedName) === '1'
+                    ? existingVlan === null || existingVlan === void 0 ? void 0 : existingVlan.prot1Id
+                    : existingVlan === null || existingVlan === void 0 ? void 0 : existingVlan.prot2Id;
+                if (vlanId) {
+                    // update the vlan
+                    edits.push(...updateTextContent(addr.querySelector('Address > P[type="VLAN-ID"]'), vlanId));
+                }
+                else {
+                    // allocate VLAN
+                    const newVlanIds = nextVlan[useCase][serviceType]();
+                    const chosenVlanId = getProtectionNumber(iedName) === '1'
+                        ? newVlanIds === null || newVlanIds === void 0 ? void 0 : newVlanIds.prot1Id
+                        : newVlanIds === null || newVlanIds === void 0 ? void 0 : newVlanIds.prot2Id;
+                    if (newVlanIds) {
+                        const vlan = {
+                            serviceName,
+                            serviceType,
+                            useCase,
+                            ...newVlanIds,
+                        };
+                        writeVlan(this.doc, vlan, this);
+                        vlanAllocated = true;
+                        // TODO: Parameterise 3E7.
+                        edits.push(...updateTextContent(addr.querySelector('Address > P[type="VLAN-ID"]'), chosenVlanId !== null && chosenVlanId !== void 0 ? chosenVlanId : '3E7'));
+                        // console.log('New VLAN:', vlan);
+                    }
+                }
+            }
         });
         if (vlanAllocated) {
             const vlanContainer = this.doc.querySelector('Private[type="Transpower-VLAN-Allocation"]');
