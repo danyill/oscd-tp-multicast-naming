@@ -444,7 +444,8 @@ function writeVlan(doc: XMLDocument, vlan: Vlan, dispatchElement: Element) {
   // TODO: Fix my types
   (<any>Object.keys(vlan)).forEach((attrName: keyof Vlan) => {
     const attrValue = vlan[attrName]!;
-    newVlan.setAttribute(attrName, attrValue);
+    if (!(attrName === 'busName' && vlan.useCase === 'Station'))
+      newVlan.setAttribute(attrName, attrValue);
   });
 
   const edit = {
@@ -518,7 +519,7 @@ export default class TPMulticastNaming extends LitElement {
   docName!: string;
 
   @property({ attribute: false })
-  editCount!: number;
+  editCount: number = -1;
 
   @property({ attribute: false })
   gridItems: AddressItem[] = [];
@@ -897,7 +898,7 @@ export default class TPMulticastNaming extends LitElement {
     // MAC Addresses
     const allCommElements = Array.from(
       this.doc.querySelectorAll(
-        `Communication > SubNetwork > ConnectedAP > GSE, Communication > SubNetwork > ConnectedAP > SMV`
+        `:root > Communication > SubNetwork > ConnectedAP > GSE, :root > Communication > SubNetwork > ConnectedAP > SMV`
       )
     );
 
@@ -1095,7 +1096,7 @@ export default class TPMulticastNaming extends LitElement {
             controlName.startsWith('ARecl') ||
             controlName.startsWith('SwgrPos')
           ) {
-            serviceName = 'ARecl/SwgrPos';
+            serviceName = 'P1 to P2 ARecl/SwgrPos';
             serviceType = 'InterProt';
             useCase = 'Bus';
           } else if (
