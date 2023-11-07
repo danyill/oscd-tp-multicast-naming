@@ -1303,7 +1303,8 @@ export default class TPMulticastNaming extends LitElement {
         if (minTime) {
           if (
             element.getAttribute('cbName')?.toUpperCase().startsWith('CTL') ||
-            element.getAttribute('cbName')?.toUpperCase().startsWith('TRIP')
+            element.getAttribute('cbName')?.toUpperCase().startsWith('TRIP') ||
+            element.getAttribute('cbName')?.toUpperCase().startsWith('TEST')
           ) {
             edits.push(...updateTextContent(minTime, '4'));
           } else {
