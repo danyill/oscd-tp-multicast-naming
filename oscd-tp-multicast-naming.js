@@ -43192,7 +43192,7 @@ class TPMulticastNaming extends s$2 {
             edits = [];
         }
         selectedCommElements.forEach(element => {
-            var _a, _b, _c, _d, _e, _f;
+            var _a, _b, _c, _d, _e, _f, _g;
             const protNum = getProtectionNumber(element.closest('ConnectedAP').getAttribute('iedName'));
             const newMac = nextMac[element.tagName][protNum]();
             edits.push(...updateTextContent(element.querySelector('Address > P[type="MAC-Address"]'), newMac));
@@ -43202,7 +43202,8 @@ class TPMulticastNaming extends s$2 {
                 const maxTime = element.querySelector('MaxTime');
                 if (minTime) {
                     if (((_a = element.getAttribute('cbName')) === null || _a === void 0 ? void 0 : _a.toUpperCase().startsWith('CTL')) ||
-                        ((_b = element.getAttribute('cbName')) === null || _b === void 0 ? void 0 : _b.toUpperCase().startsWith('TRIP'))) {
+                        ((_b = element.getAttribute('cbName')) === null || _b === void 0 ? void 0 : _b.toUpperCase().startsWith('TRIP')) ||
+                        ((_c = element.getAttribute('cbName')) === null || _c === void 0 ? void 0 : _c.toUpperCase().startsWith('TEST'))) {
                         edits.push(...updateTextContent(minTime, '4'));
                     }
                     else {
@@ -43217,8 +43218,8 @@ class TPMulticastNaming extends s$2 {
             let protType = protNum;
             // if it is not protection it is in a different range
             if (element.tagName === 'GSE' &&
-                !(((_c = element.getAttribute('cbName')) === null || _c === void 0 ? void 0 : _c.toUpperCase().startsWith('CTL')) ||
-                    ((_d = element.getAttribute('cbName')) === null || _d === void 0 ? void 0 : _d.toUpperCase().startsWith('TRIP')))) {
+                !(((_d = element.getAttribute('cbName')) === null || _d === void 0 ? void 0 : _d.toUpperCase().startsWith('CTL')) ||
+                    ((_e = element.getAttribute('cbName')) === null || _e === void 0 ? void 0 : _e.toUpperCase().startsWith('TRIP')))) {
                 protType = 'N';
             }
             const newAppId = nextAppId[element.tagName][protType]();
@@ -43227,8 +43228,8 @@ class TPMulticastNaming extends s$2 {
             let priority = '5';
             if (element.tagName === 'SMV' ||
                 (element.tagName === 'GSE' &&
-                    (((_e = element.getAttribute('cbName')) === null || _e === void 0 ? void 0 : _e.toUpperCase().startsWith('CTL')) ||
-                        ((_f = element.getAttribute('cbName')) === null || _f === void 0 ? void 0 : _f.toUpperCase().startsWith('TRIP'))))) {
+                    (((_f = element.getAttribute('cbName')) === null || _f === void 0 ? void 0 : _f.toUpperCase().startsWith('CTL')) ||
+                        ((_g = element.getAttribute('cbName')) === null || _g === void 0 ? void 0 : _g.toUpperCase().startsWith('TRIP'))))) {
                 priority = '6';
             }
             edits.push(...updateTextContent(element.querySelector('Address > P[type="VLAN-PRIORITY"]'), priority));
