@@ -43129,7 +43129,7 @@ class TPMulticastNaming extends s$2 {
             const serviceType = control.tagName === 'GSEControl' ? 'GSE' : 'SMV';
             let serviceName;
             if (controlName.startsWith('ILock') ||
-                controlName.startsWith('CBFailInit') ||
+                controlName.startsWith('TripCBFail') ||
                 controlName.startsWith('SPSStn') ||
                 controlName.startsWith('VReg')) {
                 serviceName = 'Station GOOSE';
