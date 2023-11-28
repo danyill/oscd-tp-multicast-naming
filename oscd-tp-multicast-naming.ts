@@ -1194,7 +1194,7 @@ export default class TPMulticastNaming extends LitElement {
       let serviceName: string | undefined;
       if (
         controlName.startsWith('ILock') ||
-        controlName.startsWith('CBFailInit') ||
+        controlName.startsWith('TripCBFail') ||
         controlName.startsWith('SPSStn') ||
         controlName.startsWith('VReg')
       ) {

@@ -98,7 +98,7 @@ VLAN ID::
 <.^|Nothing as yet.
 
 |GOOSE
-|`ILock`, `CBFailInit`, `SPSBus`, `VReg`
+|`ILock`, `TripCBFail`, `SPSBus`, `VReg`
 |1000-1049
 |2000-2049
 |e.g. Interlocking, SPS schemes across a bus, event triggering, bus protection CB Fail initiate, voltage regulation
