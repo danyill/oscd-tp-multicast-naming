@@ -42490,7 +42490,7 @@ function isEven(num) {
 function getProtectionNumber(iedName) {
     var _a, _b;
     const protectionNumber = (_b = (_a = iedName.split('_')) === null || _a === void 0 ? void 0 : _a.slice(-1)[0]) !== null && _b !== void 0 ? _b : 'None';
-    if (isEven(parseInt(protectionNumber[1], 10))) {
+    if (isEven(parseInt(protectionNumber.slice(-1), 10))) {
         return '2';
     }
     return '1';
