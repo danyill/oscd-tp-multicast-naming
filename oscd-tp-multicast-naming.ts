@@ -1183,7 +1183,7 @@ export default class TPMulticastNaming extends LitElement {
         smvIDFunction = control
           .getAttribute('smvID')
           ?.replace(`${iedName}`, '')
-          .replace('/', '');
+          .replace('_', '');
 
       const controlName = control.getAttribute('name')!;
 
