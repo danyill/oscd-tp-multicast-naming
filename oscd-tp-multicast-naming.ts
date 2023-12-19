@@ -322,7 +322,7 @@ function isEven(num: number): boolean {
 
 function getProtectionNumber(iedName: string): string {
   const protectionNumber = iedName.split('_')?.slice(-1)[0] ?? 'None';
-  if (isEven(parseInt(protectionNumber[1], 10))) {
+  if (isEven(parseInt(protectionNumber.slice(-1), 10))) {
     return '2';
   }
   return '1';
