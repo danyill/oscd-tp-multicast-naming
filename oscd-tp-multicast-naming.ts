@@ -263,7 +263,7 @@ const vlanRanges = {
   },
   Bus: {
     InterProt: { min: 50, max: 99, offsetToP2: 0 },
-    GSE: { min: 100, max: 149, offsetToP2: 100 },
+    GSE: { min: 104, max: 149, offsetToP2: 96 },
     SMV: { min: 150, max: 199, offsetToP2: 100 },
   },
 };
