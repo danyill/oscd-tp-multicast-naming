@@ -126,8 +126,8 @@ VLAN ID::
 
 |(Bus and Bay Level) GOOSE (Slow)
 |`Ind`, `Test`, `TCh`
-.2+|100-149
-.2+|200-249
+.2+|110-149
+.2+|210-249
 |Bus protection, SPS schemes within a bus, bay protections, test signals, tap changing
 
 |(Bus and Bay Level) GOOSE (Fast)
