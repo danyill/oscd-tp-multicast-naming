@@ -43138,6 +43138,7 @@ class TPMulticastNaming extends s$2 {
             if (controlName.startsWith('ILock') ||
                 controlName.startsWith('TripCBFail') ||
                 controlName.startsWith('SPSStn') ||
+                controlName.startsWith('AdjBusCouplerInd') ||
                 controlName.startsWith('VReg')) {
                 serviceName = 'Station GOOSE';
                 useCase = 'Station';
