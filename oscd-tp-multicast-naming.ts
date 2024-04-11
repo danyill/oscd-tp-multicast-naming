@@ -71,6 +71,7 @@ type AddressItem = {
   appId: string;
   vlanPriority: string;
   vlanId: string;
+  confRev: string;
   minTime: string;
   maxTime: string;
   controlIdentity: string;
@@ -737,6 +738,7 @@ export default class TPMulticastNaming extends LitElement {
           vlanPriority:
             address?.querySelector('Address > P[type="VLAN-PRIORITY"]')
               ?.textContent ?? '',
+          confRev: control.getAttribute('confRev') ?? '',
           minTime: address?.querySelector('MinTime')?.textContent ?? '',
           maxTime: address?.querySelector('MaxTime')?.textContent ?? '',
           controlIdentity: `${identity(control)}`,
@@ -873,6 +875,12 @@ export default class TPMulticastNaming extends LitElement {
           id="vlanPriority"
           path="vlanPriority"
           header="VLAN Priority"
+          width="40px"
+        ></vaadin-grid-filter-column>
+        <vaadin-grid-filter-column
+          id="confRev"
+          path="confRev"
+          header="Config Rev"
           width="40px"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
@@ -1378,6 +1386,7 @@ export default class TPMulticastNaming extends LitElement {
       'VLAN Priority',
       'Min Time',
       'Max Time',
+      'Conf Rev',
     ]);
     // content
     const items =
@@ -1394,6 +1403,7 @@ export default class TPMulticastNaming extends LitElement {
         item.appId,
         item.vlanId,
         item.vlanPriority,
+        item.confRev,
         item.minTime,
         item.maxTime,
       ];
