@@ -35,6 +35,7 @@ type AddressItem = {
     appId: string;
     vlanPriority: string;
     vlanId: string;
+    confRev: string;
     minTime: string;
     maxTime: string;
     controlIdentity: string;

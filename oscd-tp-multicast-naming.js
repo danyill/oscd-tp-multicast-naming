@@ -42755,7 +42755,7 @@ class TPMulticastNaming extends s$2 {
             return aMac.localeCompare(bMac);
         })
             .forEach(control => {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
             const address = getCommAddress(control);
             const ied = control.closest('IED');
             const iedName = ied.getAttribute('name');
@@ -42775,8 +42775,9 @@ class TPMulticastNaming extends s$2 {
                     ? `0x${vlanId} (${parseInt(vlanId, 16).toString(10)})`
                     : '',
                 vlanPriority: (_l = (_k = address === null || address === void 0 ? void 0 : address.querySelector('Address > P[type="VLAN-PRIORITY"]')) === null || _k === void 0 ? void 0 : _k.textContent) !== null && _l !== void 0 ? _l : '',
-                minTime: (_o = (_m = address === null || address === void 0 ? void 0 : address.querySelector('MinTime')) === null || _m === void 0 ? void 0 : _m.textContent) !== null && _o !== void 0 ? _o : '',
-                maxTime: (_q = (_p = address === null || address === void 0 ? void 0 : address.querySelector('MaxTime')) === null || _p === void 0 ? void 0 : _p.textContent) !== null && _q !== void 0 ? _q : '',
+                confRev: (_m = control.getAttribute('confRev')) !== null && _m !== void 0 ? _m : '',
+                minTime: (_p = (_o = address === null || address === void 0 ? void 0 : address.querySelector('MinTime')) === null || _o === void 0 ? void 0 : _o.textContent) !== null && _p !== void 0 ? _p : '',
+                maxTime: (_r = (_q = address === null || address === void 0 ? void 0 : address.querySelector('MaxTime')) === null || _q === void 0 ? void 0 : _q.textContent) !== null && _r !== void 0 ? _r : '',
                 controlIdentity: `${identity(control)}`,
                 addressIdentity: `${identity(address)}`,
             };
@@ -42893,6 +42894,12 @@ class TPMulticastNaming extends s$2 {
           id="vlanPriority"
           path="vlanPriority"
           header="VLAN Priority"
+          width="40px"
+        ></vaadin-grid-filter-column>
+        <vaadin-grid-filter-column
+          id="confRev"
+          path="confRev"
+          header="Config Rev"
           width="40px"
         ></vaadin-grid-filter-column>
         <vaadin-grid-filter-column
@@ -43254,6 +43261,7 @@ class TPMulticastNaming extends s$2 {
             'VLAN Priority',
             'Min Time',
             'Max Time',
+            'Conf Rev',
         ]);
         // content
         const items = this.selectedItems.length === 0 ? this.gridItems : this.selectedItems;
@@ -43269,6 +43277,7 @@ class TPMulticastNaming extends s$2 {
                 item.appId,
                 item.vlanId,
                 item.vlanPriority,
+                item.confRev,
                 item.minTime,
                 item.maxTime,
             ];
