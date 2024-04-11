@@ -1607,7 +1607,7 @@ export default class TPMulticastNaming extends LitElement {
         <div>
           <mwc-button
             outlined
-            icon="update"
+            icon="upgrade"
             class="button"
             label="Update VLANs (${sizeSelectedItems || '0'})"
             ?disabled=${sizeSelectedItems === 0}
