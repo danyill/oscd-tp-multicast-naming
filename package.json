@@ -39,6 +39,7 @@
     "@material/mwc-menu": "^0.27.0",
     "@material/mwc-snackbar": "^0.27.0",
     "@openenergytools/scl-lib": "^0.2.2",
+    "@openenergytools/scl-text-field": "^1.0.4",
     "@openscd/open-scd-core": "^0.0.2",
     "@openscd/oscd-filtered-list": "^1.1.0",
     "@openscd/oscd-scl": "^0.0.2",
