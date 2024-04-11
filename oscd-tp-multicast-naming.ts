@@ -14,6 +14,8 @@ import '@material/mwc-snackbar';
 
 import '@openscd/oscd-filtered-list';
 
+import '@openenergytools/scl-text-field';
+
 import '@vaadin/grid';
 import '@vaadin/checkbox';
 
@@ -557,12 +559,21 @@ export default class TPMulticastNaming extends LitElement {
   @query('#vlanList')
   vlanListUI!: Dialog;
 
+  @query('#updateVlanList')
+  updateVlanListUI!: Dialog;
+
   // TODO: Refactor for performance.
   @property({ type: Map })
   busConnections: Map<string, string> = new Map();
 
   @property({ type: Array })
   commElements: Element[] | [] = [];
+
+  @property()
+  updateVlanValue: number | null = 999;
+
+  @property()
+  updateVlanValueValidity = false;
 
   @query('.selection-list')
   cbList: List | undefined;
@@ -1582,56 +1593,75 @@ export default class TPMulticastNaming extends LitElement {
           </mwc-button>
           <!-- TODO: Feature to add network-data extension in here -->
         </div>
-        <mwc-button
-          outlined
-          icon="drive_file_rename_outline"
-          class="button"
-          label="Address GOOSE and SMV (${sizeSelectedItems || '0'})"
-          ?disabled=${sizeSelectedItems === 0}
-          @click=${() => {
-            if (!this.doc) return;
+        <div>
+          <mwc-button
+            outlined
+            icon="update"
+            class="button"
+            label="Update VLANs (${sizeSelectedItems || '0'})"
+            ?disabled=${sizeSelectedItems === 0}
+            @click=${() => {
+              this.updateVlanListUI.show();
+            }}
+          >
+          </mwc-button>
+          <mwc-button
+            outlined
+            icon="drive_file_rename_outline"
+            class="button"
+            label="Address GOOSE and SMV (${sizeSelectedItems || '0'})"
+            ?disabled=${sizeSelectedItems === 0}
+            @click=${() => {
+              if (!this.doc) return;
 
-            const selectedCommElements = (<any>this.selectedItems)
-              .map(
-                (item: { type: string; addressIdentity: string | number }) => {
-                  const gSEorSMV = this.doc.querySelector(
-                    selector(item.type, item.addressIdentity)
-                  )!;
-                  return gSEorSMV;
-                }
-              )
-              .filter((e: Element | null) => e !== null);
+              const selectedCommElements = (<any>this.selectedItems)
+                .map(
+                  (item: {
+                    type: string;
+                    addressIdentity: string | number;
+                  }) => {
+                    const gSEorSMV = this.doc.querySelector(
+                      selector(item.type, item.addressIdentity)
+                    )!;
+                    return gSEorSMV;
+                  }
+                )
+                .filter((e: Element | null) => e !== null);
 
-            const selectedControlElements = (<any>this.selectedItems)
-              .map(
-                (item: { type: string; controlIdentity: string | number }) => {
-                  const control = this.doc.querySelector(
-                    selector(
-                      item.type === 'GSE'
-                        ? 'GSEControl'
-                        : 'SampledValueControl',
-                      item.controlIdentity
-                    )
-                  )!;
-                  return control;
-                }
-              )
-              .filter((e: Element | null) => e !== null);
+              const selectedControlElements = (<any>this.selectedItems)
+                .map(
+                  (item: {
+                    type: string;
+                    controlIdentity: string | number;
+                  }) => {
+                    const control = this.doc.querySelector(
+                      selector(
+                        item.type === 'GSE'
+                          ? 'GSEControl'
+                          : 'SampledValueControl',
+                        item.controlIdentity
+                      )
+                    )!;
+                    return control;
+                  }
+                )
+                .filter((e: Element | null) => e !== null);
 
-            this.updateCommElements(
-              selectedCommElements,
-              selectedControlElements
-            );
+              this.updateCommElements(
+                selectedCommElements,
+                selectedControlElements
+              );
 
-            this.gridItems = [];
-            this.gridUI.selectedItems = [];
-            this.selectedItems = [];
+              this.gridItems = [];
+              this.gridUI.selectedItems = [];
+              this.selectedItems = [];
 
-            this.updateContent();
-            // this.gridUI.clearCache();
-          }}
-        >
-        </mwc-button>
+              this.updateContent();
+              // this.gridUI.clearCache();
+            }}
+          >
+          </mwc-button>
+        </div>
       </div>
     `;
   }
@@ -1753,6 +1783,94 @@ export default class TPMulticastNaming extends LitElement {
     </mwc-snackbar>`;
   }
 
+  // eslint-disable-next-line class-methods-use-this
+  onVlanUpdate() {
+    // do stuff
+  }
+
+  renderVlanDialog(): TemplateResult {
+    return html`<mwc-dialog id="updateVlanList" heading="Enter new VLAN ID">
+      <scl-text-field
+        label="vlan"
+        nullable
+        value=""
+        pattern="[0-9A-F]{3}"
+        required
+        supportingText="VLAN ID (3 character hex value) ${this
+          .updateVlanValue === null
+          ? ''
+          : `${this.updateVlanValue.toString(10)} decimal)`}"
+        placeholder=""
+        @input=${(event: any) => {
+          this.updateVlanValueValidity = event.target!.reportValidity();
+          if (!this.updateVlanValueValidity) return;
+          const { value } = event.target!;
+          this.updateVlanValue = value ? parseInt(value, 16) : null;
+        }}
+      ></scl-text-field>
+      <mwc-button
+        dialogAction="ok"
+        slot="secondaryAction"
+        @click="${() => {
+          this.gridItems = [];
+          this.gridUI.selectedItems = [];
+          this.selectedItems = [];
+        }}"
+        >Cancel</mwc-button
+      >
+      <mwc-button
+        dialogAction="updateVlans"
+        id="updateVlansButton"
+        slot="primaryAction"
+        icon="upgrade"
+        ?disabled=${!this.updateVlanValueValidity}
+        @click="${() => {
+          if (!this.doc) return;
+
+          const selectedCommElements = (<any>this.selectedItems)
+            .map((item: { type: string; addressIdentity: string | number }) => {
+              const gSEorSMV = this.doc.querySelector(
+                selector(item.type, item.addressIdentity)
+              )!;
+              return gSEorSMV;
+            })
+            .filter((e: Element | null) => e !== null)
+            .map((elem: Element) =>
+              elem!.querySelector('Address > P[type="VLAN-ID"]')
+            );
+
+          const edits: Edit[] = [];
+          selectedCommElements.forEach((addr: Element) => {
+            if (this.updateVlanValue) {
+              // update
+              edits.push(
+                ...updateTextContent(
+                  addr,
+                  this.updateVlanValue!.toString(16)
+                    .toUpperCase()
+                    .padStart(3, '0')
+                )
+              );
+            } else {
+              // remove
+              edits.push({ node: addr });
+            }
+          });
+
+          this.dispatchEvent(newEditEvent(edits));
+
+          this.gridItems = [];
+          this.gridUI.selectedItems = [];
+          this.selectedItems = [];
+
+          this.updateContent();
+        }}"
+      >
+        Update VLANs
+      </mwc-button>
+    </mwc-dialog>`;
+  }
+
   render(): TemplateResult {
     if (!this.doc)
       return html`<h2 class="emptyDocument">No document loaded</h2>`;
@@ -1765,7 +1883,7 @@ export default class TPMulticastNaming extends LitElement {
         ${this.renderSelectionList()} ${this.renderButtons()}
       </section>
       ${this.renderVlanList()} ${this.renderFileInput()}
-      ${this.renderResultMessage()}
+      ${this.renderVlanDialog()} ${this.renderResultMessage()}
     `;
   }
 
@@ -1843,6 +1961,10 @@ export default class TPMulticastNaming extends LitElement {
     /* Hide the icon of unselected menu items that are in a group */
     #busConnectionMenu > [mwc-list-item]:not([selected]) [slot='graphic'] {
       display: none;
+    }
+
+    #updateVlanList {
+      width: 400px;
     }
 
     /* matching vaadin-grid material themes with open-scd themes */
