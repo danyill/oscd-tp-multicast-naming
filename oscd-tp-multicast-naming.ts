@@ -1810,7 +1810,7 @@ export default class TPMulticastNaming extends LitElement {
         supportingText="VLAN ID (3 character hex value) ${this
           .updateVlanValue === null
           ? ''
-          : `${this.updateVlanValue.toString(10)} decimal)`}"
+          : `(${this.updateVlanValue.toString(10)} decimal)`}"
         placeholder=""
         @input=${(event: any) => {
           this.updateVlanValueValidity = event.target!.reportValidity();
