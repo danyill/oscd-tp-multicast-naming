@@ -97,10 +97,15 @@ VLAN ID::
 2+|1050-1059
 <.^|Nothing as yet.
 
+|Conventional Integration
+|For interfacing with conventional protection
+2+|1000
+<.^|Nothing as yet.
+
 |GOOSE
 |`ILock`, `TripCBFail`, `SPSBus`, `VReg`, `AdjBusCouplerInd``
-|1000-1049
-|2000-2049
+|1001-1049
+|2001-2049
 |e.g. Interlocking, SPS schemes across a bus, event triggering, bus protection CB Fail initiate, voltage regulation, indication across a bus section/coupler
 
 |SV
