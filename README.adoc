@@ -94,7 +94,7 @@ VLAN ID::
 
 |P1 to P2 GOOSE
 |Nothing as yet.
-2+|1050-1099
+2+|1050-1059
 <.^|Nothing as yet.
 
 |GOOSE
@@ -105,8 +105,8 @@ VLAN ID::
 
 |SV
 |`VTSelStn`
-|1050-1099
-|2050-2099
+|1060-1099
+|2060-2099
 |e.g. VT Selection, Synch Check and Deadline Charge, Remote Synch
 |===
 
