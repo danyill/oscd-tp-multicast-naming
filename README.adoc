@@ -104,8 +104,8 @@ VLAN ID::
 
 |GOOSE
 |`ILock`, `TripCBFail`, `SPSBus`, `VReg`, `AdjBusCouplerInd``
-|1001-1049
-|2001-2049
+|1006-1049
+|2006-2049
 |e.g. Interlocking, SPS schemes across a bus, event triggering, bus protection CB Fail initiate, voltage regulation, indication across a bus section/coupler
 
 |SV
@@ -153,7 +153,7 @@ VLAN ID::
 * Buses are determine by a Function named `BusPhysConnection` under a Bay in the `Substation` section with a `name` which begins `Bus` followed by an underscore and the bus name.
 ** The bus `name` attribute is the definition of "bus" in the above.
 * Within the function, there will be a single `LPHD` for each device (although any logical node reference will do)
-* This will be for Generation 1 substations (at least for this initial design). 
+* This will be for Generation 1 substations (at least for this initial design).
 +
 [source,xml]
 ----
@@ -176,7 +176,7 @@ VLAN ID::
 </Bay>
 ----
 
-VLANs can be viewed and exported to another file (to keep allocations consistent between protection systems if files are managed separately). 
+VLANs can be viewed and exported to another file (to keep allocations consistent between protection systems if files are managed separately).
 An export to csv of all (or selected) publishing information is provided.
 
 === Storing VLAN Information
@@ -256,7 +256,7 @@ $ git clone {uri-plugin}
 
   $ npm i
 
-. Start up a demo server 
+. Start up a demo server
 
   $ npm run start
 
@@ -285,7 +285,7 @@ image::screenshot-add-extension.png[width=300]
 
 ==== Within the current OpenSCD distribution
 
-. Within the current OpenSCD distribution, plugins are stored in the `public/js/plugins.js` folder. 
+. Within the current OpenSCD distribution, plugins are stored in the `public/js/plugins.js` folder.
 Each plugin appears in the following form:
 +
 [source,js,subs=+attributes]
@@ -301,14 +301,14 @@ Each plugin appears in the following form:
   }
 ----
 <.> Name of the plugin which appears in the editor menu at top of screen
-<.> URL which can be a local or remote resource. 
-For a local resource, begins without a forward slash, e.g. `plugins/oscd-tp-multicast-naming/dist/oscd-tp-multicast-naming.js`. 
+<.> URL which can be a local or remote resource.
+For a local resource, begins without a forward slash, e.g. `plugins/oscd-tp-multicast-naming/dist/oscd-tp-multicast-naming.js`.
 In this case what is shown is loading a plugin from the build process.
 <.> A material icon, see others at {uri-material-icons}[Material Symbols and Icons]
 <.> Whether the plugin is enabled by default or has to be enabled in the plugins menu
 <.> The type of plugin, either `menu` or `editor`. This is an `editor` plugin.
 <.> Whether a document must be loaded for this plugin to be available
-<.> A string, either `top`, `middle` or `bottom` to give a location in the menu. 
+<.> A string, either `top`, `middle` or `bottom` to give a location in the menu.
 Otherwise inferred from the order in the file relative to other plugins.
 
 . You need to copy an entry like the above, ensure the `src` URL resolves and the plugin should be loaded when the distribution is built.
@@ -333,7 +333,7 @@ include::demo/index.html[tag=plugins]
 {
   "name": "{plugin-name}", // <.>
   "translations": { // <.>
-    "de": "Kommunikationsexport", 
+    "de": "Kommunikationsexport",
     "pt":"Exportação de Comunicações"
   },
   "icon": "sim_card_download", // <.>
@@ -347,8 +347,8 @@ include::demo/index.html[tag=plugins]
 <.> A material icon, see others at {uri-material-icons}[Material Symbols and Icons]
 <.> Whether the plugin is enabled by default or has to be enabled in the plugins menu
 <.> Whether a document must be loaded for this plugin to be available
-<.> URL which can be a local or remote resource. 
-For a local resource, begins with a forward slash, e.g. `plugins/oscd-tp-multicast-naming/dist/oscd-tp-multicast-naming.js`. 
+<.> URL which can be a local or remote resource.
+For a local resource, begins with a forward slash, e.g. `plugins/oscd-tp-multicast-naming/dist/oscd-tp-multicast-naming.js`.
 In this case what is shown is loading a plugin from the internet using the continuous integration build process.
 
 . You need to copy an entry like the above, ensure the `src` URL resolves and the plugin should be loaded when the distribution is built.
