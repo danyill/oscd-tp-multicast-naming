@@ -49045,7 +49045,7 @@ function getAllocatedVlans(doc) {
 const vlanRanges = {
     Station: {
         InterProt: { min: 1050, max: 1059, offsetToP2: 0 },
-        GSE: { min: 1001, max: 1049, offsetToP2: 1000 },
+        GSE: { min: 1006, max: 1049, offsetToP2: 1000 },
         SMV: { min: 1060, max: 1099, offsetToP2: 1000 },
     },
     Bus: {
