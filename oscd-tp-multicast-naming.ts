@@ -1396,9 +1396,9 @@ export default class TPMulticastNaming extends LitElement {
       'APP ID',
       'VLAN Id',
       'VLAN Priority',
+      'Conf Rev',
       'Min Time',
       'Max Time',
-      'Conf Rev',
     ]);
     // content
     const items =
