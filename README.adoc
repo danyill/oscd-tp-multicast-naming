@@ -87,7 +87,7 @@ VLAN ID::
 [cols="1*<.^,1*<.^,2*^.^,1*<.^",options="header,unbreakable"]
 |===
 |Service Type
-|Service Names
+|Services
 |Prot1 VLAN Range
 |Prot2 VLAN Range
 |Comment
@@ -119,7 +119,7 @@ VLAN ID::
 [cols="1*<.^,1*<.^,2*^.^,1*<.^",options="header,unbreakable"]
 |===
 |Service Type
-|Service Name
+|Services
 |Prot1 VLAN Range
 |Prot2 VLAN Range
 |Comment

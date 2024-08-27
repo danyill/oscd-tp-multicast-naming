@@ -1106,16 +1106,16 @@ export default class TPMulticastNaming extends LitElement {
             controlName.startsWith('SPSBus') ||
             controlName.startsWith('TCh')
           ) {
-            serviceName = 'Bus/Bay GOOSE Slow';
+            serviceName = 'Slow';
             useCase = 'Bus';
           } else if (controlName.startsWith('Ctl')) {
-            serviceName = 'Bus/Bay GOOSE Fast';
+            serviceName = 'Fast';
             useCase = 'Bus';
           } else if (
             controlName.startsWith('ARecl') ||
             controlName.startsWith('SwgrPos')
           ) {
-            serviceName = 'P1 to P2 ARecl/SwgrPos';
+            serviceName = '';
             serviceType = 'InterProt';
             useCase = 'Bus';
           } else if (
@@ -1124,14 +1124,13 @@ export default class TPMulticastNaming extends LitElement {
               smvIDFunction === 'Phase' ||
               smvIDFunction === 'NCT_UB_ET')
           ) {
-            serviceName = 'Bus/Bay SV';
+            serviceName = '';
             useCase = 'Bus';
           }
 
           // Allocate if adequate definition is not available
           if (
-            serviceName &&
-            serviceType &&
+            serviceName !== undefined &&
             useCase === 'Bus' &&
             busName !== 'NOBUSES'
           ) {
@@ -1218,20 +1217,20 @@ export default class TPMulticastNaming extends LitElement {
         controlName.startsWith('AdjBusCouplerInd') ||
         controlName.startsWith('VReg')
       ) {
-        serviceName = 'Station GOOSE';
+        serviceName = '';
         useCase = 'Station';
       } else if (serviceType === 'SMV' && smvIDFunction === 'VTSelStn') {
-        serviceName = 'Station SV';
+        serviceName = '';
         useCase = 'Station';
       }
 
       // Allocate if adequate definition is not available
-      if (serviceName && serviceType && useCase === 'Station') {
+      if (serviceName !== undefined && useCase === 'Station') {
         const { stationVlans } = getAllocatedVlans(this.doc);
-        const existingVlans = stationVlans;
 
-        const existingVlan = existingVlans?.find(
-          vlan => vlan.serviceName === serviceName
+        const existingVlan = stationVlans?.find(
+          vlan =>
+            vlan.serviceName === serviceName && vlan.serviceType === serviceType
         );
 
         const vlanId =
