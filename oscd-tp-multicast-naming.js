@@ -49740,7 +49740,8 @@ class TPMulticastNaming extends s$3 {
                 controlName.startsWith('TripCBFail') ||
                 controlName.startsWith('SPSStn') ||
                 controlName.startsWith('AdjBusCouplerInd') ||
-                controlName.startsWith('VReg')) {
+                controlName.startsWith('VReg') ||
+                controlName.startsWith('SwydLighting')) {
                 serviceName = '';
                 useCase = 'Station';
             }
