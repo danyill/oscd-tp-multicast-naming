@@ -103,16 +103,16 @@ VLAN ID::
 <.^|Nothing as yet.
 
 |GOOSE
-|`ILock`, `TripCBFail`, `SPSBus`, `VReg`, `AdjBusCouplerInd``
+|`ILock`, `TripCBFail`, `SPSBus`, `VReg`, `AdjBusCouplerInd`, `SwydLighting`
 |1006-1049
 |2006-2049
-|e.g. Interlocking, SPS schemes across a bus, event triggering, bus protection CB Fail initiate, voltage regulation, indication across a bus section/coupler
+|e.g. Interlocking, SPS schemes across a bus, event triggering, bus protection CB Fail initiate, voltage regulation, indication across a bus section/coupler, switchyard lighting.
 
 |SV
 |`VTSelStn`
 |1060-1099
 |2060-2099
-|e.g. VT Selection, Synch Check and Deadline Charge, Remote Synch
+|e.g. VT Selection, Synch Check and Deadline Charge, Remote Synch.
 |===
 
 .For a Bus
