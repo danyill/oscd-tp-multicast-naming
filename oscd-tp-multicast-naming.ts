@@ -1216,7 +1216,8 @@ export default class TPMulticastNaming extends LitElement {
         controlName.startsWith('SPSStn') ||
         controlName.startsWith('AdjBusCouplerInd') ||
         controlName.startsWith('VReg') ||
-        controlName.startsWith('SwydLighting')
+        controlName.startsWith('SwydLighting') ||
+        controlName.startsWith('HalfCB_Ctl')
       ) {
         serviceName = '';
         useCase = 'Station';

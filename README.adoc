@@ -103,10 +103,10 @@ VLAN ID::
 <.^|Nothing as yet.
 
 |GOOSE
-|`ILock`, `TripCBFail`, `SPSBus`, `VReg`, `AdjBusCouplerInd`, `SwydLighting`
+|`ILock`, `TripCBFail`, `SPSBus`, `VReg`, `AdjBusCouplerInd`, `SwydLighting`, `HalfCB_Ctl`
 |1006-1049
 |2006-2049
-|e.g. Interlocking, SPS schemes across a bus, event triggering, bus protection CB Fail initiate, voltage regulation, indication across a bus section/coupler, switchyard lighting.
+|e.g. Interlocking, SPS schemes across a bus, event triggering, bus protection CB Fail initiate, voltage regulation, indication across a bus section/coupler, switchyard lighting, breakere and a half, half CB Trip(CBFail) and ARecl block
 
 |SV
 |`VTSelStn`
