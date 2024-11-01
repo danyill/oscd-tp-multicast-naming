@@ -1140,7 +1140,8 @@ export default class TPMulticastNaming extends LitElement {
             const existingVlan = existingVlans?.find(
               vlan =>
                 (vlan.busName === busName || busName === 'NOBUSES') &&
-                vlan.serviceName === serviceName
+                vlan.serviceName === serviceName &&
+                vlan.serviceType === serviceType
             );
 
             const vlanId =
