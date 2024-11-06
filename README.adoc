@@ -103,7 +103,7 @@ VLAN ID::
 <.^|Nothing as yet.
 
 |GOOSE
-|`ILock`, `TripCBFail`, `SPS`, `VReg`, `AdjBusCouplerInd`, `SwydLighting`, `CtlHalfCB`
+|`ILock`, `TripCBFail`, `SPSStn`, `VReg`, `AdjBusCouplerInd`, `SwydLighting`, `CtlHalfCB`
 |1006-1049
 |2006-2049
 |e.g. Interlocking, SPS schemes, event triggering, bus protection CB Fail initiate, voltage regulation, indication across a bus section/coupler, switchyard lighting, breaker and a half installations Trip(CBFail) and ARecl block
@@ -130,10 +130,10 @@ VLAN ID::
 <.^|ARecl Initiate, ARecl Block, Cross tripping if required, Event triggering, ESW indication on GHA LV Incomers
 
 |(Bus and Bay Level) GOOSE (Slow)
-|`Ind`, `Test`, `TCh`
+|`Ind`, `Test`, `TCh`, `SPS`
 .2+|110-149
 .2+|210-249
-|Bus protection, bay protections, test signals, tap changing
+|Bus protection, bay protections, test signals, tap changing, SPSes within a primary bus
 
 |(Bus and Bay Level) GOOSE (Fast)
 |`Ctl`
