@@ -49661,7 +49661,7 @@ class TPMulticastNaming extends s$3 {
                 let serviceName;
                 if (controlName.startsWith('Ind') ||
                     controlName.startsWith('Test') ||
-                    controlName.startsWith('SPS') ||
+                    controlName.startsWith('SPSBus') ||
                     controlName.startsWith('TCh')) {
                     serviceName = 'Slow';
                     useCase = 'Bus';
