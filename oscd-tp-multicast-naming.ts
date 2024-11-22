@@ -1103,7 +1103,7 @@ export default class TPMulticastNaming extends LitElement {
           if (
             controlName.startsWith('Ind') ||
             controlName.startsWith('Test') ||
-            controlName.startsWith('SPS') ||
+            controlName.startsWith('SPSBus') ||
             controlName.startsWith('TCh')
           ) {
             serviceName = 'Slow';

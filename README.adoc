@@ -130,7 +130,7 @@ VLAN ID::
 <.^|ARecl Initiate, ARecl Block, Cross tripping if required, Event triggering, ESW indication on GHA LV Incomers
 
 |(Bus and Bay Level) GOOSE (Slow)
-|`Ind`, `Test`, `TCh`, `SPS`
+|`Ind`, `Test`, `TCh`, `SPSBus`
 .2+|110-149
 .2+|210-249
 |Bus protection, bay protections, test signals, tap changing, SPSes within a primary bus
