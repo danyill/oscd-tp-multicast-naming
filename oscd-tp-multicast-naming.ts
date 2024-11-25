@@ -1214,7 +1214,7 @@ export default class TPMulticastNaming extends LitElement {
 
       let useCase: 'Bus' | 'Station' | undefined;
 
-      const serviceType = control.tagName === 'GSEControl' ? 'GSE' : 'SMV';
+      let serviceType = control.tagName === 'GSEControl' ? 'GSE' : 'SMV';
 
       let serviceName: string | undefined;
       if (
@@ -1230,6 +1230,13 @@ export default class TPMulticastNaming extends LitElement {
         useCase = 'Station';
       } else if (serviceType === 'SMV' && smvIDFunction === 'VTSelStn') {
         serviceName = '';
+        useCase = 'Station';
+      } else if (
+        serviceType === 'GSE' &&
+        controlName.startsWith('AdjSwgrPos')
+      ) {
+        serviceName = '';
+        serviceType = 'InterProt';
         useCase = 'Station';
       }
 
