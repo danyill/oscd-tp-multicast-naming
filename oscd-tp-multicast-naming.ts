@@ -466,13 +466,19 @@ function getBusConnections(doc: XMLDocument) {
     doc.querySelectorAll(
       'Substation > VoltageLevel > Bay > Function[name="BusPhysConnection"]'
     )
-  ).forEach(physConn => {
-    const bayName = physConn.closest('Bay')?.getAttribute('name')!;
-    physConn.querySelectorAll('LNode').forEach(lNode => {
-      const iedName = lNode.getAttribute('iedName')!;
-      bcs.set(iedName, bayName);
+  )
+    .sort((a, b) => {
+      const aName = a.closest('Bay')!.getAttribute('name')!;
+      const bName = b.closest('Bay')!.getAttribute('name')!;
+      return aName.localeCompare(bName);
+    })
+    .forEach(physConn => {
+      const bayName = physConn.closest('Bay')?.getAttribute('name')!;
+      physConn.querySelectorAll('LNode').forEach(lNode => {
+        const iedName = lNode.getAttribute('iedName')!;
+        bcs.set(iedName, bayName);
+      });
     });
-  });
   return bcs;
 }
 
