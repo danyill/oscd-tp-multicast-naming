@@ -93,9 +93,9 @@ VLAN ID::
 |Comment
 
 |P1 to P2 GOOSE
-|Nothing as yet.
+|`AdjSwgrPos`
 2+|1050-1059
-<.^|Nothing as yet.
+<.^|Passing adjacent switchgear position to Prot 2 devices.
 
 |Conventional Integration
 |For interfacing with conventional protection
