@@ -519,6 +519,17 @@ function formatXml(xml: string, tab?: string) {
   return formatted.substring(1, formatted.length - 3);
 }
 
+function equalsOrWithUnderscore(templateName: string, cbName: string): boolean {
+  console.log(templateName.length);
+  if (
+    cbName === templateName ||
+    `${cbName.substring(0, templateName.length + 1)}` === `${templateName}_`
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export default class TPMulticastNaming extends LitElement {
   /** The document being edited as provided to plugins by [[`OpenSCD`]]. */
   @property({ attribute: false })
@@ -1107,19 +1118,19 @@ export default class TPMulticastNaming extends LitElement {
 
           let serviceName: string | undefined;
           if (
-            controlName.startsWith('Ind') ||
-            controlName.startsWith('Test') ||
-            controlName.startsWith('SPSBus') ||
-            controlName.startsWith('TCh')
+            equalsOrWithUnderscore('Ind', controlName) ||
+            equalsOrWithUnderscore('Test', controlName) ||
+            equalsOrWithUnderscore('SPSBus', controlName) ||
+            equalsOrWithUnderscore('TCh', controlName)
           ) {
             serviceName = 'Slow';
             useCase = 'Bus';
-          } else if (controlName.startsWith('Ctl')) {
+          } else if (equalsOrWithUnderscore('Ctl', controlName)) {
             serviceName = 'Fast';
             useCase = 'Bus';
           } else if (
-            controlName.startsWith('ARecl') ||
-            controlName.startsWith('SwgrPos')
+            equalsOrWithUnderscore('ARecl', controlName) ||
+            equalsOrWithUnderscore('SwgrPos', controlName)
           ) {
             serviceName = '';
             serviceType = 'InterProt';
@@ -1218,13 +1229,13 @@ export default class TPMulticastNaming extends LitElement {
 
       let serviceName: string | undefined;
       if (
-        controlName.startsWith('ILock') ||
-        controlName.startsWith('TripCBFail') ||
-        controlName.startsWith('SPSStn') ||
-        controlName.startsWith('AdjBusCouplerInd') ||
-        controlName.startsWith('VReg') ||
-        controlName.startsWith('SwydLighting') ||
-        controlName.startsWith('CtlHalfCB')
+        equalsOrWithUnderscore('ILock', controlName) ||
+        equalsOrWithUnderscore('TripCBFail', controlName) ||
+        equalsOrWithUnderscore('SPSStn', controlName) ||
+        equalsOrWithUnderscore('AdjBusCouplerInd', controlName) ||
+        equalsOrWithUnderscore('VReg', controlName) ||
+        equalsOrWithUnderscore('SwydLighting', controlName) ||
+        equalsOrWithUnderscore('CtlHalfCB', controlName)
       ) {
         serviceName = '';
         useCase = 'Station';
@@ -1233,7 +1244,7 @@ export default class TPMulticastNaming extends LitElement {
         useCase = 'Station';
       } else if (
         serviceType === 'GSE' &&
-        controlName.startsWith('AdjSwgrPos')
+        equalsOrWithUnderscore('AdjSwgrPos', controlName)
       ) {
         serviceName = '';
         serviceType = 'InterProt';

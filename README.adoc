@@ -78,22 +78,25 @@ GSE `MinTime` and `MaxTime`::
 
 VLAN ID::
 * VLANs are allocated on the basis of the control block name for GSE and the `smvID` for SMV (after the trailing `/`)
-* They are allocated as pairs for Prot1 and Prot2 at the same time. Prot1 and Prot2 are identified by the IED name ending in an even and odd number respectively.
+* They are allocated as pairs for Prot1 and Prot2 at the same time. 
+Prot1 and Prot2 are identified by the IED name ending in an even and odd number respectively.
 * A VLAN is either substation wide or on a per primary system bus basis.
-* Allocation as follows
+* Allocation is as follows, based on the control block name for GOOSE or smvID for SMV traffic.
+* For GOOSE control block names the control block name is accepted or the name with an `_` and any other characters.
 +
 --
 .For a Substation
 [cols="1*<.^,1*<.^,2*^.^,1*<.^",options="header,unbreakable"]
 |===
 |Service Type
-|Services
+|Services (Control Block Name Prefix)
 |Prot1 VLAN Range
 |Prot2 VLAN Range
 |Comment
 
 |P1 to P2 GOOSE
-|`AdjSwgrPos`
+|
+`AdjSwgrPos`
 2+|1050-1059
 <.^|Passing adjacent switchgear position to Prot 2 devices.
 
