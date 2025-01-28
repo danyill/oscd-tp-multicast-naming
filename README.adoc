@@ -73,7 +73,7 @@ VLAN Priority::
 * All SMV traffic is Priority 6
 
 GSE `MinTime` and `MaxTime`::
-* All tripping or testing messages (as defined by control block names beginning `Ctl` or `Trip` or `Test`) have a `MinTime` of 4 ms and a `MaxTime` of 1000 ms.
+* All tripping or testing messages (as defined by control block names beginning `Ctl` or `Trip`, `SPSStn`, `SPSBus` or `Test`) have a `MinTime` of 4 ms and a `MaxTime` of 1000 ms.
 * All other messages have a `MinTime` of 100 ms and a `MaxTime` of 1000 ms.
 A special case is the GE Multilin B30 relay which has special requirements. 
 In this case a `MaxTime` of 2000 ms is used (identified by the IED type and manufacturer attributes).
