@@ -1349,7 +1349,12 @@ export default class TPMulticastNaming extends LitElement {
           if (
             element.getAttribute('cbName')?.toUpperCase().startsWith('CTL') ||
             element.getAttribute('cbName')?.toUpperCase().startsWith('TRIP') ||
-            element.getAttribute('cbName')?.toUpperCase().startsWith('TEST')
+            element.getAttribute('cbName')?.toUpperCase().startsWith('TEST') ||
+            element
+              .getAttribute('cbName')
+              ?.toUpperCase()
+              .startsWith('SPSSTN') ||
+            element.getAttribute('cbName')?.toUpperCase().startsWith('SPSBUS')
           ) {
             edits.push(...updateTextContent(minTime, '4'));
           } else {
