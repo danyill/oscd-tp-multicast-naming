@@ -1329,9 +1329,8 @@ export default class TPMulticastNaming extends LitElement {
     }
 
     selectedCommElements.forEach(element => {
-      const protNum = getProtectionNumber(
-        element.closest('ConnectedAP')!.getAttribute('iedName')!
-      );
+      const iedName = element.closest('ConnectedAP')!.getAttribute('iedName')!;
+      const protNum = getProtectionNumber(iedName);
       const newMac = nextMac[element.tagName][protNum]();
 
       edits.push(
@@ -1359,7 +1358,18 @@ export default class TPMulticastNaming extends LitElement {
         }
 
         if (maxTime) {
-          edits.push(...updateTextContent(maxTime, '1000'));
+          const ied = element.ownerDocument.querySelector(
+            `:root > IED[name="${iedName}"]`
+          );
+          console.log(ied);
+          if (
+            ied?.getAttribute('manufacturer') === 'GE Multilin' &&
+            ied?.getAttribute('type') === 'B30'
+          ) {
+            edits.push(...updateTextContent(maxTime, '2000'));
+          } else {
+            edits.push(...updateTextContent(maxTime, '1000'));
+          }
         }
       }
 
