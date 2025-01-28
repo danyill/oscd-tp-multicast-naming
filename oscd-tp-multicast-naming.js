@@ -49824,7 +49824,8 @@ class TPMulticastNaming extends s$3 {
         }
         selectedCommElements.forEach(element => {
             var _a, _b, _c, _d, _e, _f, _g;
-            const protNum = getProtectionNumber(element.closest('ConnectedAP').getAttribute('iedName'));
+            const iedName = element.closest('ConnectedAP').getAttribute('iedName');
+            const protNum = getProtectionNumber(iedName);
             const newMac = nextMac[element.tagName][protNum]();
             edits.push(...updateTextContent(element.querySelector('Address > P[type="MAC-Address"]'), newMac));
             if (element.tagName === 'GSE') {
@@ -49842,7 +49843,15 @@ class TPMulticastNaming extends s$3 {
                     }
                 }
                 if (maxTime) {
-                    edits.push(...updateTextContent(maxTime, '1000'));
+                    const ied = element.ownerDocument.querySelector(`:root > IED[name="${iedName}"]`);
+                    console.log(ied);
+                    if ((ied === null || ied === void 0 ? void 0 : ied.getAttribute('manufacturer')) === 'GE Multilin' &&
+                        (ied === null || ied === void 0 ? void 0 : ied.getAttribute('type')) === 'B30') {
+                        edits.push(...updateTextContent(maxTime, '2000'));
+                    }
+                    else {
+                        edits.push(...updateTextContent(maxTime, '1000'));
+                    }
                 }
             }
             // APPIDs
